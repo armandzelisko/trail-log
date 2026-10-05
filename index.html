@@ -221,7 +221,7 @@ table{border-collapse:collapse}
 .data-table tbody tr:hover{background:var(--surface-raised)}
 .td-m{font-family:var(--f-m);font-variant-numeric:tabular-nums}
 .td-d{color:var(--text-3)}
-.td-dt{color:var(--text-2);font-size:13px}
+.td-dt{color:var(--text-2);font-size:13px}.td-name{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-1)}
 
 /* ── Empty state ─────────────────────────────────────────────────── */
 .empty-state{display:flex;flex-direction:column;align-items:center;gap:13px;
@@ -298,6 +298,16 @@ table{border-collapse:collapse}
 .detail-grid-2{display:grid;grid-template-columns:2fr 1fr;gap:13px;margin-bottom:13px}
 .detail-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-bottom:13px}
 
+/* Laps table */
+.laps-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+.laps-table th{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);text-align:left;padding:5px 8px 5px 0;border-bottom:1px solid var(--border)}
+.laps-table td{padding:6px 8px 6px 0;border-bottom:1px solid var(--border);vertical-align:middle}
+.laps-table tr:last-child td{border-bottom:none}
+.lap-rest td{color:var(--text-3);background:rgba(0,0,0,.015)}
+.lap-idx{font-family:var(--f-d);font-weight:700;font-size:14px;color:var(--accent);width:28px;text-align:center}
+.lap-badge{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.06em;padding:2px 7px;border-radius:20px}
+.lap-badge-effort{background:rgba(192,82,36,.12);color:var(--accent)}
+.lap-badge-rest{background:rgba(100,100,100,.1);color:var(--text-3)}
 /* Zone bar */
 .zone-bar-wrap{display:flex;flex-direction:column;gap:7px;margin-top:8px}
 .zone-row{display:flex;align-items:center;gap:9px;font-size:12px}
@@ -474,6 +484,10 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
         <div class="card-header"><div class="card-title">FC vs Dénivelé cumulé</div></div>
         <div class="chart-area" id="det-chart-hr-dp" style="height:180px"></div>
       </div>
+      <div class="card" id="det-laps-card" style="display:none">
+        <div class="card-header"><div class="card-title">Intervalles</div></div>
+        <div id="det-laps"></div>
+      </div>
       <div class="card">
         <div class="card-header"><div class="card-title">Infos complémentaires</div></div>
         <div id="det-extra" style="padding:4px 0;font-size:13.5px;color:var(--text-2);line-height:2.2"></div>
@@ -579,19 +593,48 @@ function parseTCX(xml) {
     const date = new Date(idEl.textContent.trim());
     const id   = date.toISOString();
     const sportKey = act.getAttribute('Sport') || 'Other';
+    const notesEl = qn(act, 'Notes');
+    const name = notesEl ? notesEl.textContent.trim() : '';
     // Normalize
     const sport = SPORT[sportKey] ? sportKey : 'Other';
 
     // Laps
     const laps = act.getElementsByTagNameNS(TCX_NS, 'Lap');
     let totalTime = 0, totalCal = 0, lapMaxHR = 0;
+    const parsedLaps = [];
+    let intervalIdx = 0;
     for (const lap of laps) {
-      const t = qt(lap, 'TotalTimeSeconds');
-      const c = qt(lap, 'Calories');
-      const mEl = qn(lap, 'MaximumHeartRateBpm');
-      if (t) totalTime += parseFloat(t);
+      const t  = qt(lap, 'TotalTimeSeconds');
+      const c  = qt(lap, 'Calories');
+      const dm = qt(lap, 'DistanceMeters');
+      const intensity = qt(lap, 'Intensity') || 'Active';
+      const avgHREl = qn(lap, 'AverageHeartRateBpm');
+      const maxHREl = qn(lap, 'MaximumHeartRateBpm');
+      const lapAvgHR = avgHREl ? (parseInt(qt(avgHREl,'Value')||'0')||0) : 0;
+      const lapMaxHRv = maxHREl ? (parseInt(qt(maxHREl,'Value')||'0')||0) : 0;
+      const dur = t ? parseFloat(t) : 0;
+      const dist = dm ? parseFloat(dm) : 0;
+      if (t) totalTime += dur;
       if (c) totalCal  += parseInt(c) || 0;
-      if (mEl) { const v = qt(mEl, 'Value'); if (v) lapMaxHR = Math.max(lapMaxHR, parseInt(v)||0); }
+      if (lapMaxHRv) lapMaxHR = Math.max(lapMaxHR, lapMaxHRv);
+      const isRest = intensity.toLowerCase() === 'resting';
+      if (!isRest) intervalIdx++;
+      // D+/D- from trackpoints inside this lap
+      const lapTps = lap.getElementsByTagNameNS(TCX_NS, 'Trackpoint');
+      const lapAlts = [];
+      for (const tp of lapTps) { const a = qt(tp,'AltitudeMeters'); if(a) lapAlts.push(parseFloat(a)); }
+      const lapElev = elev(smooth(lapAlts, Math.min(5, lapAlts.length||1)));
+      parsedLaps.push({
+        idx: isRest ? null : intervalIdx,
+        intensity: isRest ? 'Récupération' : 'Effort',
+        duration: dur,
+        distance: dist,
+        pace: dist > 50 ? dur / (dist / 1000) : 0,
+        avgHR: lapAvgHR,
+        maxHR: lapMaxHRv,
+        dPlus: lapElev.dPlus,
+        dMinus: lapElev.dMinus,
+      });
     }
 
     // Trackpoints — collect in parallel array
@@ -634,8 +677,8 @@ function parseTCX(xml) {
       }
     }
 
-    results.push({ id, date, sport, duration: totalTime, distance: lastDist,
-      calories: totalCal, avgHR, maxHR, dPlus, dMinus, pace, profile });
+    results.push({ id, date, sport, name, duration: totalTime, distance: lastDist,
+      calories: totalCal, avgHR, maxHR, dPlus, dMinus, pace, profile, laps: parsedLaps });
   }
   return results;
 }
@@ -1047,7 +1090,7 @@ function renderRecentTable() {
     </div>`;return;
   }
   let html=`<table class="data-table"><thead><tr>
-    <th>Date</th><th>Sport</th><th>Distance</th><th>Durée</th>
+    <th>Date</th><th>Sport</th><th>Nom</th><th>Distance</th><th>Durée</th>
     <th>D+</th><th>FC moy.</th><th>Allure</th><th>Calories</th>
   </tr></thead><tbody>`;
   recent.forEach(a=>{
@@ -1055,6 +1098,7 @@ function renderRecentTable() {
     html+=`<tr class="tr-clickable" onclick="openActivity('${a.id}','dashboard')" title="Voir le détail">
       <td class="td-dt">${dateFmt(a.date)}</td>
       <td><span class="sport-badge" style="background:${si.css}">${si.abbr}</span></td>
+      <td class="td-name">${a.name||'—'}</td>
       <td class="td-m">${kmFmt(a.distance)}<span class="td-d"> km</span></td>
       <td class="td-m">${durFmt(a.duration)}</td>
       <td class="td-m" style="color:var(--green)">${a.dPlus>0?'+'+numFmt(a.dPlus)+' m':'—'}</td>
@@ -1093,7 +1137,7 @@ function renderActivities() {
     return sortDir==='asc'?va-vb:vb-va;
   });
   let html=`<table class="data-table"><thead><tr>
-    ${th('Date','date')} ${th('Sport','sport')} ${th('Distance','distance')} ${th('Durée','duration')}
+    ${th('Date','date')} ${th('Sport','sport')} <th>Nom</th> ${th('Distance','distance')} ${th('Durée','duration')}
     ${th('D+','dPlus')} <th>D−</th> ${th('FC moy.','avgHR')} <th>FC max</th>
     ${th('Allure','pace')} <th>Calories</th> <th></th>
   </tr></thead><tbody>`;
@@ -1102,6 +1146,7 @@ function renderActivities() {
     html+=`<tr class="tr-clickable" onclick="openActivity('${a.id}','activities')" title="Voir le détail">
       <td class="td-dt">${dateFmt(a.date)}</td>
       <td><span class="sport-badge" style="background:${si.css}">${si.abbr}</span></td>
+      <td class="td-name">${a.name||'—'}</td>
       <td class="td-m">${kmFmt(a.distance)}<span class="td-d"> km</span></td>
       <td class="td-m">${durFmt(a.duration)}</td>
       <td class="td-m" style="color:var(--green)">${a.dPlus>0?'+'+numFmt(a.dPlus)+'<span class="td-d"> m</span>':'—'}</td>
@@ -1149,8 +1194,9 @@ function renderDetail() {
   // Hero
   document.getElementById('detail-eyebrow').innerHTML =
     `<span class="sport-badge" style="background:${si.css}">${si.abbr}</span>
-     <span>${dateFmt(a.date)}</span>`;
-  document.getElementById('detail-title').textContent = durFmt(a.duration);
+     <span>${dateFmt(a.date)}</span>
+     <span style="color:var(--text-3)">${durFmt(a.duration)}</span>`;
+  document.getElementById('detail-title').textContent = a.name || dateFmt(a.date);
 
   // KPI
   const kpis = [
@@ -1219,6 +1265,61 @@ function renderDetail() {
         <div class="zone-pct">${pct}%</div>
       </div>`;
     }).join('') + `<div style="font-family:var(--f-m);font-size:10px;color:var(--text-3);margin-top:10px">Référence FCmax : ${refMax} bpm</div>`;
+  }
+
+  // Intervalles
+  const lapsCard = document.getElementById('det-laps-card');
+  const lapsDiv  = document.getElementById('det-laps');
+  if (a.laps && a.laps.length > 1) {
+    lapsCard.style.display = '';
+    const effortLaps = a.laps.filter(l => l.intensity === 'Effort');
+    const hasRest = a.laps.some(l => l.intensity === 'Récupération');
+    // Résumé efforts
+    let avgEffortPace = 0, avgEffortHR = 0, validP = 0, validH = 0;
+    effortLaps.forEach(l => { if(l.pace>0){avgEffortPace+=l.pace;validP++;} if(l.avgHR>0){avgEffortHR+=l.avgHR;validH++;} });
+    if(validP) avgEffortPace=Math.round(avgEffortPace/validP);
+    if(validH) avgEffortHR=Math.round(avgEffortHR/validH);
+    const summaryHtml = effortLaps.length > 1 ? `
+      <div style="display:flex;gap:24px;padding:10px 0 14px;border-bottom:1px solid var(--border);margin-bottom:4px;font-size:12px;color:var(--text-3)">
+        <span><strong style="color:var(--accent);font-size:15px;font-family:var(--f-d)">${effortLaps.length}</strong> intervalles effort</span>
+        ${avgEffortPace?`<span>Allure moy. <strong style="color:var(--text-1)">${paceFmt(avgEffortPace)}/km</strong></span>`:''}
+        ${avgEffortHR?`<span>FC moy. <strong style="color:var(--blue)">${avgEffortHR} bpm</strong></span>`:''}
+      </div>` : '';
+    let rows = '';
+    a.laps.forEach((l,i) => {
+      const isRest = l.intensity === 'Récupération';
+      const badge = isRest
+        ? `<span class="lap-badge lap-badge-rest">Récup.</span>`
+        : `<span class="lap-badge lap-badge-effort">Effort</span>`;
+      const idxCell = isRest ? '' : l.idx;
+      const durStr = l.duration >= 60
+        ? `${Math.floor(l.duration/60)}:${String(Math.round(l.duration%60)).padStart(2,'0')}`
+        : `0:${String(Math.round(l.duration)).padStart(2,'0')}`;
+      const distStr = l.distance >= 100 ? `${(l.distance/1000).toFixed(2)} km` : `${Math.round(l.distance)} m`;
+      const paceStr = l.pace > 0 && !isRest ? paceFmt(l.pace) : '—';
+      const hrStr   = l.avgHR > 0 ? `${l.avgHR} bpm` : '—';
+      const maxHRStr = l.maxHR > 0 ? `${l.maxHR}` : '—';
+      const dpStr  = l.dPlus  > 0 ? `+${Math.round(l.dPlus)} m`  : '—';
+      const dmStr  = l.dMinus > 0 ? `−${Math.round(l.dMinus)} m` : '—';
+      rows += `<tr class="${isRest?'lap-rest':''}">
+        <td class="lap-idx">${idxCell}</td>
+        <td>${badge}</td>
+        <td style="font-family:var(--f-m)">${durStr}</td>
+        <td>${distStr}</td>
+        <td>${paceStr}</td>
+        <td style="color:var(--blue)">${hrStr}</td>
+        <td style="color:var(--blue)">${maxHRStr}</td>
+        <td style="color:var(--green)">${dpStr}</td>
+        <td style="color:var(--text-2)">${dmStr}</td>
+      </tr>`;
+    });
+    lapsDiv.innerHTML = summaryHtml + `<table class="laps-table">
+      <thead><tr>
+        <th>#</th><th>Type</th><th>Durée</th><th>Distance</th><th>Allure</th><th style="color:var(--blue)">FC moy.</th><th style="color:var(--blue)">FC max</th><th style="color:var(--green)">D+</th><th style="color:var(--text-2)">D−</th>
+      </tr></thead><tbody>${rows}</tbody>
+    </table>`;
+  } else {
+    lapsCard.style.display = 'none';
   }
 
   // Infos complémentaires
