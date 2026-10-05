@@ -509,6 +509,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
    CONSTANTS
 ════════════════════════════════════════════════════════════════ */
 const TCX_NS = 'http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2';
+const ACT_NS = 'http://www.garmin.com/xmlschemas/ActivityExtension/v2';
 const STORE  = 'traillog_v2';
 
 const SPORT = {
@@ -624,6 +625,16 @@ function parseTCX(xml) {
       const lapAlts = [];
       for (const tp of lapTps) { const a = qt(tp,'AltitudeMeters'); if(a) lapAlts.push(parseFloat(a)); }
       const lapElev = elev(smooth(lapAlts, Math.min(5, lapAlts.length||1)));
+      // Power from Garmin extensions (AvgWatts / MaxWatts in LX block)
+      const lxEls = lap.getElementsByTagNameNS(ACT_NS, 'LX');
+      let avgWatts = 0, maxWatts = 0;
+      if (lxEls.length) {
+        const lx = lxEls[0];
+        const awEl = lx.getElementsByTagNameNS(ACT_NS, 'AvgWatts');
+        const mwEl = lx.getElementsByTagNameNS(ACT_NS, 'MaxWatts');
+        if (awEl.length) avgWatts = parseInt(awEl[0].textContent) || 0;
+        if (mwEl.length) maxWatts = parseInt(mwEl[0].textContent) || 0;
+      }
       parsedLaps.push({
         idx: isRest ? null : intervalIdx,
         intensity: isRest ? 'Récupération' : 'Effort',
@@ -634,6 +645,8 @@ function parseTCX(xml) {
         maxHR: lapMaxHRv,
         dPlus: lapElev.dPlus,
         dMinus: lapElev.dMinus,
+        avgWatts,
+        maxWatts,
       });
     }
 
@@ -1274,16 +1287,23 @@ function renderDetail() {
     lapsCard.style.display = '';
     const effortLaps = a.laps.filter(l => l.intensity === 'Effort');
     const hasRest = a.laps.some(l => l.intensity === 'Récupération');
+    const hasPower = a.laps.some(l => l.avgWatts > 0);
     // Résumé efforts
-    let avgEffortPace = 0, avgEffortHR = 0, validP = 0, validH = 0;
-    effortLaps.forEach(l => { if(l.pace>0){avgEffortPace+=l.pace;validP++;} if(l.avgHR>0){avgEffortHR+=l.avgHR;validH++;} });
+    let avgEffortPace = 0, avgEffortHR = 0, avgEffortW = 0, validP = 0, validH = 0, validW = 0;
+    effortLaps.forEach(l => {
+      if(l.pace>0){avgEffortPace+=l.pace;validP++;}
+      if(l.avgHR>0){avgEffortHR+=l.avgHR;validH++;}
+      if(l.avgWatts>0){avgEffortW+=l.avgWatts;validW++;}
+    });
     if(validP) avgEffortPace=Math.round(avgEffortPace/validP);
     if(validH) avgEffortHR=Math.round(avgEffortHR/validH);
+    if(validW) avgEffortW=Math.round(avgEffortW/validW);
     const summaryHtml = effortLaps.length > 1 ? `
-      <div style="display:flex;gap:24px;padding:10px 0 14px;border-bottom:1px solid var(--border);margin-bottom:4px;font-size:12px;color:var(--text-3)">
+      <div style="display:flex;gap:24px;flex-wrap:wrap;padding:10px 0 14px;border-bottom:1px solid var(--border);margin-bottom:4px;font-size:12px;color:var(--text-3)">
         <span><strong style="color:var(--accent);font-size:15px;font-family:var(--f-d)">${effortLaps.length}</strong> intervalles effort</span>
         ${avgEffortPace?`<span>Allure moy. <strong style="color:var(--text-1)">${paceFmt(avgEffortPace)}/km</strong></span>`:''}
         ${avgEffortHR?`<span>FC moy. <strong style="color:var(--blue)">${avgEffortHR} bpm</strong></span>`:''}
+        ${avgEffortW?`<span>Puissance moy. <strong style="color:var(--purple)">${avgEffortW} W</strong></span>`:''}
       </div>` : '';
     let rows = '';
     a.laps.forEach((l,i) => {
@@ -1298,9 +1318,14 @@ function renderDetail() {
       const distStr = l.distance >= 100 ? `${(l.distance/1000).toFixed(2)} km` : `${Math.round(l.distance)} m`;
       const paceStr = l.pace > 0 && !isRest ? paceFmt(l.pace) : '—';
       const hrStr   = l.avgHR > 0 ? `${l.avgHR} bpm` : '—';
-      const maxHRStr = l.maxHR > 0 ? `${l.maxHR}` : '—';
-      const dpStr  = l.dPlus  > 0 ? `+${Math.round(l.dPlus)} m`  : '—';
-      const dmStr  = l.dMinus > 0 ? `−${Math.round(l.dMinus)} m` : '—';
+      const maxHRStr  = l.maxHR    > 0 ? `${l.maxHR}` : '—';
+      const dpStr     = l.dPlus    > 0 ? `+${Math.round(l.dPlus)} m`  : '—';
+      const dmStr     = l.dMinus   > 0 ? `−${Math.round(l.dMinus)} m` : '—';
+      const avgWStr   = l.avgWatts > 0 ? `${l.avgWatts} W` : '—';
+      const maxWStr   = l.maxWatts > 0 ? `${l.maxWatts} W` : '—';
+      const powerCols = hasPower
+        ? `<td style="color:var(--purple)">${avgWStr}</td><td style="color:var(--purple);opacity:.7">${maxWStr}</td>`
+        : '';
       rows += `<tr class="${isRest?'lap-rest':''}">
         <td class="lap-idx">${idxCell}</td>
         <td>${badge}</td>
@@ -1311,11 +1336,15 @@ function renderDetail() {
         <td style="color:var(--blue)">${maxHRStr}</td>
         <td style="color:var(--green)">${dpStr}</td>
         <td style="color:var(--text-2)">${dmStr}</td>
+        ${powerCols}
       </tr>`;
     });
+    const powerHeaders = hasPower
+      ? `<th style="color:var(--purple)">W moy.</th><th style="color:var(--purple);opacity:.7">W max</th>`
+      : '';
     lapsDiv.innerHTML = summaryHtml + `<table class="laps-table">
       <thead><tr>
-        <th>#</th><th>Type</th><th>Durée</th><th>Distance</th><th>Allure</th><th style="color:var(--blue)">FC moy.</th><th style="color:var(--blue)">FC max</th><th style="color:var(--green)">D+</th><th style="color:var(--text-2)">D−</th>
+        <th>#</th><th>Type</th><th>Durée</th><th>Distance</th><th>Allure</th><th style="color:var(--blue)">FC moy.</th><th style="color:var(--blue)">FC max</th><th style="color:var(--green)">D+</th><th style="color:var(--text-2)">D−</th>${powerHeaders}
       </tr></thead><tbody>${rows}</tbody>
     </table>`;
   } else {
