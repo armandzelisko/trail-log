@@ -1,4 +1,5 @@
-<title>Trail Log</title>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}</style></head><body>
+<title>TRAIL AZ</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@600;700&family=Jost:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -120,7 +121,10 @@ table{border-collapse:collapse}
   border-bottom:1px solid var(--nav-border);display:flex;align-items:center;padding:0 24px;z-index:100}
 
 .nav-logo{display:flex;align-items:center;gap:9px;font-family:var(--f-d);font-size:19px;
-  font-weight:700;color:#F0EBE0;letter-spacing:.05em;text-transform:uppercase;margin-right:24px;cursor:pointer}
+  font-weight:700;color:#F0EBE0;letter-spacing:.05em;text-transform:uppercase;margin-right:24px;cursor:pointer;flex-direction:column;align-items:flex-start;gap:1px}
+.nav-logo-row{display:flex;align-items:center;gap:9px}
+.nav-tagline{font-family:var(--f-u);font-size:9px;font-weight:500;letter-spacing:.12em;
+  text-transform:uppercase;color:#5A5248;line-height:1}
 .nav-logo:hover{color:#fff}
 
 .nav-items{display:flex;align-items:center;gap:2px;flex:1}
@@ -154,7 +158,7 @@ table{border-collapse:collapse}
 .btn-delete:hover{color:#C03020;background:rgba(192,48,32,.1)}
 
 /* ── KPI grid ───────────────────────────────────────────────────── */
-.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-bottom:18px}
+.kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-bottom:18px}
 .kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-card);
   padding:17px 19px 15px}
 .kpi-label{font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
@@ -268,6 +272,49 @@ table{border-collapse:collapse}
 .proj-result-main{font-family:var(--f-d);font-size:36px;font-weight:700;color:var(--accent)}
 .proj-result-sub{font-size:13px;color:var(--text-3);margin-top:4px;line-height:1.6}
 
+/* ── Detail view ────────────────────────────────────────────────── */
+.detail-back{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:500;
+  color:var(--text-3);cursor:pointer;padding:5px 0;margin-bottom:18px;
+  transition:color .12s;width:fit-content}
+.detail-back:hover{color:var(--text-1)}
+.detail-back svg{flex-shrink:0}
+
+.detail-hero{display:flex;align-items:flex-end;justify-content:space-between;
+  margin-bottom:22px;gap:16px;flex-wrap:wrap}
+.detail-title-block{}
+.detail-eyebrow{font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--text-3);margin-bottom:5px;display:flex;align-items:center;gap:8px}
+.detail-title{font-family:var(--f-d);font-size:32px;font-weight:700;letter-spacing:.03em;
+  text-transform:uppercase;color:var(--text-1);line-height:1.1}
+
+.detail-kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-bottom:16px}
+.det-kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:14px 16px 12px}
+.det-kpi-lbl{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--text-3);margin-bottom:5px}
+.det-kpi-val{font-family:var(--f-d);font-size:28px;font-weight:700;line-height:1;color:var(--text-1)}
+.det-kpi-unit{font-family:var(--f-m);font-size:10.5px;color:var(--text-3);margin-top:2px}
+
+.detail-grid-2{display:grid;grid-template-columns:2fr 1fr;gap:13px;margin-bottom:13px}
+.detail-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-bottom:13px}
+
+/* Zone bar */
+.zone-bar-wrap{display:flex;flex-direction:column;gap:7px;margin-top:8px}
+.zone-row{display:flex;align-items:center;gap:9px;font-size:12px}
+.zone-lbl{width:20px;font-family:var(--f-m);font-size:11px;font-weight:600;color:var(--text-2)}
+.zone-name{width:90px;font-size:11px;color:var(--text-3)}
+.zone-track{flex:1;height:9px;background:var(--border-sub);border-radius:99px;overflow:hidden}
+.zone-fill{height:100%;border-radius:99px;transition:width .4s}
+.zone-pct{font-family:var(--f-m);font-size:11px;color:var(--text-2);min-width:32px;text-align:right}
+
+.tr-clickable{cursor:pointer}
+.tr-clickable:hover td{background:var(--accent-sub)!important}
+
+@media(max-width:900px){
+  .detail-kpi{grid-template-columns:repeat(2,1fr)}
+  .detail-grid-2,.detail-grid-3{grid-template-columns:1fr}
+}
+
 /* ── Legend ──────────────────────────────────────────────────────── */
 .chart-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px}
 .legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2)}
@@ -283,7 +330,7 @@ table{border-collapse:collapse}
 
 /* ── Responsive ─────────────────────────────────────────────────── */
 @media(max-width:900px){
-  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .kpi-grid{grid-template-columns:repeat(3,1fr)}
   .chart-grid-2,.chart-grid-2x2,.chart-grid-3{grid-template-columns:1fr}
   .nut-grid{grid-template-columns:repeat(2,1fr)}
   .proj-form{grid-template-columns:1fr 1fr}
@@ -303,16 +350,18 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 <nav class="topnav">
   <div class="nav-logo" onclick="go('dashboard')" role="button" tabindex="0">
-    <svg width="26" height="22" viewBox="0 0 26 22" fill="none" aria-hidden="true">
-      <path d="M1 20 L7 9 L11.5 14 L16 4 L25 20" stroke="#C53E10" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M1 20 H25" stroke="#4A4038" stroke-width="1.5" stroke-linecap="round"/>
-    </svg>
-    Trail Log
+    <div class="nav-logo-row">
+      <svg width="26" height="22" viewBox="0 0 26 22" fill="none" aria-hidden="true">
+        <path d="M1 20 L7 9 L11.5 14 L16 4 L25 20" stroke="#C53E10" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M1 20 H25" stroke="#4A4038" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      TRAIL AZ
+    </div>
+    <div class="nav-tagline">La performance de A à Z</div>
   </div>
   <div class="nav-items">
     <button class="nav-btn active" data-view="dashboard" onclick="go('dashboard')">Tableau de bord</button>
     <button class="nav-btn" data-view="activities" onclick="go('activities')">Activités</button>
-    <button class="nav-btn" data-view="analyse" onclick="go('analyse')">Analyse</button>
     <button class="nav-btn" data-view="import" onclick="go('import')">Importer</button>
   </div>
   <div class="nav-meta" id="nav-meta"></div>
@@ -368,78 +417,6 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     <div class="card" style="padding:0"><div class="table-wrap" id="full-wrap"></div></div>
   </div>
 
-  <!-- ── ANALYSE ── -->
-  <div class="view" id="view-analyse">
-    <div class="view-header">
-      <div>
-        <div class="view-eyebrow">Performance & Nutrition</div>
-        <div class="view-title">Analyse</div>
-      </div>
-    </div>
-
-    <!-- sport filter on analyse -->
-    <div class="sport-filter" id="analyse-filter"></div>
-
-    <div class="section-label">Fréquence cardiaque & effort</div>
-    <div class="chart-grid-2x2">
-      <div class="card">
-        <div class="card-header"><div class="card-title">FC moy. vs Dénivelé positif</div></div>
-        <div class="chart-area" id="chart-hr-dplus" style="height:200px"></div>
-        <div class="chart-legend" id="leg-hr-dplus"></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><div class="card-title">Profil FC au fil du D+ (intra-sortie)</div></div>
-        <div class="chart-area" id="chart-profile" style="height:200px"></div>
-        <div class="chart-legend" id="leg-profile"></div>
-      </div>
-    </div>
-
-    <div class="section-label">Dépense calorique</div>
-    <div class="chart-grid-3">
-      <div class="card">
-        <div class="card-header"><div class="card-title">Calories vs Distance</div></div>
-        <div class="chart-area" id="chart-cal-dist" style="height:190px"></div>
-        <div class="chart-legend" id="leg-cal-dist"></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><div class="card-title">Calories vs D+</div></div>
-        <div class="chart-area" id="chart-cal-dplus" style="height:190px"></div>
-        <div class="chart-legend" id="leg-cal-dplus"></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><div class="card-title">Cal/km — évolution</div></div>
-        <div class="chart-area" id="chart-calperkm" style="height:190px"></div>
-      </div>
-    </div>
-
-    <div class="section-label">Nutrition — estimateur personnel</div>
-    <div class="nut-grid" id="nut-stats"></div>
-    <div class="proj-form" id="proj-form">
-      <div class="proj-field">
-        <label>Sport</label>
-        <select id="proj-sport">
-          <option value="Running">Course / Trail</option>
-          <option value="Biking">Vélo</option>
-          <option value="Hiking">Randonnée</option>
-          <option value="Other">Autre</option>
-        </select>
-      </div>
-      <div class="proj-field">
-        <label>Distance (km)</label>
-        <input type="number" id="proj-dist" min="0" step="0.5" placeholder="15">
-      </div>
-      <div class="proj-field">
-        <label>Dénivelé D+ (m)</label>
-        <input type="number" id="proj-dp" min="0" step="50" placeholder="800">
-      </div>
-      <button class="btn-primary" onclick="calcProjection()">Estimer</button>
-    </div>
-    <div class="proj-result" id="proj-result">
-      <div class="proj-result-main" id="proj-kcal"></div>
-      <div class="proj-result-sub" id="proj-detail"></div>
-    </div>
-  </div>
-
   <!-- ── IMPORT ── -->
   <div class="view" id="view-import">
     <div class="view-header">
@@ -463,6 +440,43 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
         2. Cliquez sur <strong style="color:var(--text-1)">⋯ → Exporter en TCX</strong><br>
         3. Répétez pour chaque sortie — ou exportez tout depuis
         <em>Compte → Exporter vos données</em> (ZIP avec tous les TCX)
+      </div>
+    </div>
+  </div>
+
+  <!-- ── DETAIL ── -->
+  <div class="view" id="view-detail">
+    <div class="detail-back" onclick="go(detailFrom)" id="detail-back">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M10 3 L5 8 L10 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span id="detail-back-lbl">Retour</span>
+    </div>
+    <div class="detail-hero">
+      <div class="detail-title-block">
+        <div class="detail-eyebrow" id="detail-eyebrow"></div>
+        <div class="detail-title" id="detail-title"></div>
+      </div>
+    </div>
+    <div class="detail-kpi" id="detail-kpi"></div>
+    <div class="detail-grid-2" style="margin-bottom:13px">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Fréquence cardiaque — profil km</div></div>
+        <div class="chart-area" id="det-chart-hr-km" style="height:200px"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Zones d'intensité</div></div>
+        <div class="zone-bar-wrap" id="det-zones"></div>
+      </div>
+    </div>
+    <div class="detail-grid-2" style="margin-bottom:0">
+      <div class="card">
+        <div class="card-header"><div class="card-title">FC vs Dénivelé cumulé</div></div>
+        <div class="chart-area" id="det-chart-hr-dp" style="height:180px"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Infos complémentaires</div></div>
+        <div id="det-extra" style="padding:4px 0;font-size:13.5px;color:var(--text-2);line-height:2.2"></div>
       </div>
     </div>
   </div>
@@ -503,6 +517,8 @@ let currentMetric = 'distance';
 let currentSport  = 'all';
 let sortKey       = 'date';
 let sortDir       = 'desc';
+let currentActId  = null;
+let detailFrom    = 'dashboard';
 
 /* ════════════════════════════════════════════════════════════════
    STORAGE
@@ -647,14 +663,25 @@ const dateShort= d => d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'}
 ════════════════════════════════════════════════════════════════ */
 function go(view) {
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+  // detail view doesn't have a nav button — keep current nav tab active
+  if (view !== 'detail') {
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+  }
   const el = document.getElementById('view-'+view);
   if (el) el.classList.add('active');
   currentView = view;
   if      (view==='dashboard')  renderDashboard();
   else if (view==='activities') renderActivities();
-  else if (view==='analyse')    renderAnalyse();
+  else if (view==='detail')     renderDetail();
   updateNavMeta();
+}
+
+function openActivity(id, from) {
+  currentActId = id;
+  detailFrom = from || currentView;
+  const lbl = detailFrom === 'activities' ? 'Activités' : 'Tableau de bord';
+  document.getElementById('detail-back-lbl').textContent = '← ' + lbl;
+  go('detail');
 }
 
 function updateNavMeta() {
@@ -985,11 +1012,7 @@ function renderDashboard() {
       <div class="kpi-value c-acc" style="font-size:36px">${cal?numFmt(cal):'—'}</div>
       <div class="kpi-foot">${cal?'kcal ce mois-ci':'pas de données'}</div>
     </div>
-    <div class="kpi-card">
-      <div class="kpi-label">FC moyenne</div>
-      <div class="kpi-value c-blu">${avgHR||'—'}</div>
-      <div class="kpi-foot">${avgHR?'bpm ce mois-ci':'pas de données'}</div>
-    </div>`;
+    `;
 
   renderWeeklyChart();
   renderHRChart();
@@ -1029,7 +1052,7 @@ function renderRecentTable() {
   </tr></thead><tbody>`;
   recent.forEach(a=>{
     const si=sportInfo(a.sport);
-    html+=`<tr>
+    html+=`<tr class="tr-clickable" onclick="openActivity('${a.id}','dashboard')" title="Voir le détail">
       <td class="td-dt">${dateFmt(a.date)}</td>
       <td><span class="sport-badge" style="background:${si.css}">${si.abbr}</span></td>
       <td class="td-m">${kmFmt(a.distance)}<span class="td-d"> km</span></td>
@@ -1076,7 +1099,7 @@ function renderActivities() {
   </tr></thead><tbody>`;
   sorted.forEach(a=>{
     const si=sportInfo(a.sport);
-    html+=`<tr>
+    html+=`<tr class="tr-clickable" onclick="openActivity('${a.id}','activities')" title="Voir le détail">
       <td class="td-dt">${dateFmt(a.date)}</td>
       <td><span class="sport-badge" style="background:${si.css}">${si.abbr}</span></td>
       <td class="td-m">${kmFmt(a.distance)}<span class="td-d"> km</span></td>
@@ -1087,7 +1110,7 @@ function renderActivities() {
       <td class="td-m td-d">${a.maxHR?a.maxHR+' bpm':'—'}</td>
       <td class="td-m">${paceFmt(a.pace)}<span class="td-d">/km</span></td>
       <td class="td-m td-d">${a.calories?numFmt(a.calories)+' kcal':'—'}</td>
-      <td><button class="btn-delete" onclick="delAct('${a.id}')" aria-label="Supprimer">×</button></td>
+      <td><button class="btn-delete" onclick="event.stopPropagation();delAct('${a.id}')" aria-label="Supprimer">×</button></td>
     </tr>`;
   });
   html+=`</tbody></table>`;
@@ -1105,153 +1128,6 @@ function delAct(id) {
   renderActivities(); updateNavMeta();
 }
 
-/* ════════════════════════════════════════════════════════════════
-   RENDER: ANALYSE
-════════════════════════════════════════════════════════════════ */
-function renderAnalyse() {
-  buildSportFilter('analyse-filter','renderAnalyse');
-  const acts=filteredActs();
-
-  // ── FC vs D+ scatter ─────────────────────────────────────────
-  const sports=[...new Set(acts.map(a=>a.sport))];
-  const scatterSeries=sports.map(sp=>{
-    const si=sportInfo(sp);
-    return {
-      label:si.label,
-      color:si.css,
-      points:acts.filter(a=>a.sport===sp&&a.avgHR>0&&a.dPlus>0)
-        .map(a=>({x:a.dPlus,y:a.avgHR,label:`${dateShort(a.date)} · ${a.avgHR} bpm / +${numFmt(a.dPlus)} m`}))
-    };
-  }).filter(s=>s.points.length>0);
-  renderScatter('chart-hr-dplus',scatterSeries,{xLabel:'D+ (m)',yLabel:'FC moy. (bpm)',xUnit:'m D+',yUnit:'bpm'});
-  const legHrDp=$('leg-hr-dplus');
-  legHrDp.innerHTML=scatterSeries.map(s=>`<div class="legend-item">
-    <div class="legend-dot" style="background:${s.color}"></div>${s.label}
-  </div>`).join('');
-
-  // ── Profil FC intra-sortie ───────────────────────────────────
-  const recentWithProfile=acts.filter(a=>a.profile&&a.profile.length>2).slice(-5);
-  const profileSeries=recentWithProfile.map((a,i)=>{
-    const pts=a.profile.filter(p=>p.hr>0).map(p=>({x:p.dp,y:p.hr}));
-    return {label:`${dateShort(a.date)} — ${sportInfo(a.sport).abbr}`,color:PROFILE_COLORS[i%PROFILE_COLORS.length],points:pts};
-  });
-  renderMultiLine('chart-profile',profileSeries,{xLabel:'Dénivelé cumulé D+ (m)'});
-  const legProf=$('leg-profile');
-  legProf.innerHTML=profileSeries.map(s=>`<div class="legend-item">
-    <div class="legend-dot" style="background:${s.color}"></div>${s.label}
-  </div>`).join('');
-
-  // ── Calories vs Distance scatter ─────────────────────────────
-  const calDistSeries=sports.map(sp=>{
-    const si=sportInfo(sp);
-    return {
-      label:si.label,color:si.css,
-      points:acts.filter(a=>a.sport===sp&&a.calories>0&&a.distance>0)
-        .map(a=>({x:Math.round(a.distance/100)/10,y:a.calories,
-          label:`${dateShort(a.date)} · ${numFmt(a.calories)} kcal / ${kmFmt(a.distance)} km`}))
-    };
-  }).filter(s=>s.points.length>0);
-  renderScatter('chart-cal-dist',calDistSeries,{xLabel:'Distance (km)',yLabel:'Calories (kcal)',xUnit:'km',yUnit:'kcal'});
-  $('leg-cal-dist').innerHTML=calDistSeries.map(s=>`<div class="legend-item">
-    <div class="legend-dot" style="background:${s.color}"></div>${s.label}
-  </div>`).join('');
-
-  // ── Calories vs D+ scatter ───────────────────────────────────
-  const calDpSeries=sports.map(sp=>{
-    const si=sportInfo(sp);
-    return {
-      label:si.label,color:si.css,
-      points:acts.filter(a=>a.sport===sp&&a.calories>0&&a.dPlus>0)
-        .map(a=>({x:a.dPlus,y:a.calories,
-          label:`${dateShort(a.date)} · ${numFmt(a.calories)} kcal / +${numFmt(a.dPlus)} m`}))
-    };
-  }).filter(s=>s.points.length>0);
-  renderScatter('chart-cal-dplus',calDpSeries,{xLabel:'D+ (m)',yLabel:'Calories (kcal)',xUnit:'m D+',yUnit:'kcal'});
-  $('leg-cal-dplus').innerHTML=calDpSeries.map(s=>`<div class="legend-item">
-    <div class="legend-dot" style="background:${s.color}"></div>${s.label}
-  </div>`).join('');
-
-  // ── Cal/km trend line ────────────────────────────────────────
-  const calKmData=acts.filter(a=>a.calories>0&&a.distance>500)
-    .slice(-16)
-    .map(a=>({label:dateShort(a.date),value:Math.round(a.calories/(a.distance/1000))}));
-  renderLine('chart-calperkm',calKmData,{color:'var(--purple)',unit:'kcal/km'});
-
-  // ── Nutrition stat tiles ─────────────────────────────────────
-  const nutEl=$('nut-stats');
-  const nutCards=[];
-  sports.forEach(sp=>{
-    const si=sportInfo(sp);
-    const spActs=acts.filter(a=>a.sport===sp&&a.calories>0&&a.distance>500);
-    if(!spActs.length) return;
-    const avgCalKm=spActs.reduce((s,a)=>s+a.calories/(a.distance/1000),0)/spActs.length;
-    const dpActs=spActs.filter(a=>a.dPlus>100);
-    const avgCalDp=dpActs.length
-      ? dpActs.reduce((s,a)=>s+a.calories/(a.dPlus/100),0)/dpActs.length
-      : null;
-    nutCards.push(`
-      <div class="nut-card">
-        <div class="nut-sport" style="color:${si.css}">${si.label}</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
-          <div>
-            <div class="nut-val" style="font-size:26px">${Math.round(avgCalKm)}</div>
-            <div class="nut-unit">kcal / km moyen</div>
-          </div>
-          <div>
-            <div class="nut-val" style="font-size:26px">${avgCalDp?Math.round(avgCalDp):'—'}</div>
-            <div class="nut-unit">kcal / 100m D+</div>
-          </div>
-        </div>
-        <div class="nut-unit" style="margin-top:8px">${spActs.length} sortie${spActs.length>1?'s':''} analysée${spActs.length>1?'s':''}</div>
-      </div>`);
-  });
-  nutEl.innerHTML=nutCards.length
-    ? nutCards.join('')
-    : `<div class="nut-card" style="grid-column:1/-1;text-align:center;padding:24px">
-        <div style="color:var(--text-3);font-size:13px">Importez des activités avec données calories pour voir vos ratios personnels.</div>
-      </div>`;
-}
-
-/* ════════════════════════════════════════════════════════════════
-   NUTRITION PROJECTION
-════════════════════════════════════════════════════════════════ */
-function calcProjection() {
-  const sport = $('proj-sport').value;
-  const dist  = parseFloat($('proj-dist').value) || 0;
-  const dp    = parseFloat($('proj-dp').value)   || 0;
-  const res   = $('proj-result');
-
-  if (!dist && !dp) { res.style.display='none'; return; }
-
-  // Gather personal averages for this sport
-  const spActs = activities.filter(a=>a.sport===sport&&a.calories>0&&a.distance>500);
-  let estimate = 0, note = '';
-
-  if (spActs.length >= 1) {
-    const avgCalKm = spActs.reduce((s,a)=>s+a.calories/(a.distance/1000),0)/spActs.length;
-    const dpActs   = spActs.filter(a=>a.dPlus>100);
-    const avgCalDp = dpActs.length
-      ? dpActs.reduce((s,a)=>s+a.calories/(a.dPlus/100),0)/dpActs.length
-      : 0;
-
-    estimate = Math.round(dist * avgCalKm + (dp/100) * avgCalDp);
-    note = `Basé sur tes données personnelles : ${Math.round(avgCalKm)} kcal/km`;
-    if (avgCalDp) note += ` + ${Math.round(avgCalDp)} kcal/100m D+`;
-    note += ` (${spActs.length} sortie${spActs.length>1?'s':''})`
-    + `\nGlucides recommandés : ~${Math.round(estimate*0.55/4)} g · Lipides : ~${Math.round(estimate*0.3/9)} g · Protéines : ~${Math.round(estimate*0.15/4)} g`;
-  } else {
-    // Generic estimate (Ainsworth MET-based, average)
-    const MET = sport==='Running'?11:sport==='Biking'?8:sport==='Hiking'?6:5;
-    const weight = 70; // kg — could make this configurable
-    const hours = (dist>0?dist/10:0) + (dp>0?dp/500:0);
-    estimate = Math.round(MET * weight * hours);
-    note = `Estimation générique (pas encore de données ${sportInfo(sport).label}) · ${MET} MET × ~${hours.toFixed(1)}h\nAjoutez des activités ${sportInfo(sport).label} pour affiner avec vos données réelles.`;
-  }
-
-  $('proj-kcal').textContent = `≈ ${numFmt(estimate)} kcal`;
-  $('proj-detail').innerHTML = note.replace(/\n/g,'<br>');
-  res.style.display = 'block';
-}
 
 /* ════════════════════════════════════════════════════════════════
    METRIC TOGGLE
@@ -1260,6 +1136,104 @@ function setMetric(m) {
   currentMetric=m;
   document.querySelectorAll('.metric-btn').forEach(b=>b.classList.toggle('active',b.dataset.metric===m));
   renderWeeklyChart();
+}
+
+/* ════════════════════════════════════════════════════════════════
+   RENDER: DETAIL
+════════════════════════════════════════════════════════════════ */
+function renderDetail() {
+  const a = activities.find(x => x.id === currentActId);
+  if (!a) { go('dashboard'); return; }
+  const si = sportInfo(a.sport);
+
+  // Hero
+  document.getElementById('detail-eyebrow').innerHTML =
+    `<span class="sport-badge" style="background:${si.css}">${si.abbr}</span>
+     <span>${dateFmt(a.date)}</span>`;
+  document.getElementById('detail-title').textContent = durFmt(a.duration);
+
+  // KPI
+  const kpis = [
+    { lbl:'Distance',    val: kmFmt(a.distance), unit:'km',        col:'var(--accent)' },
+    { lbl:'Dénivelé +',  val: a.dPlus ? '+'+numFmt(a.dPlus) : '—', unit:'m',  col:'var(--green)' },
+    { lbl:'Dénivelé −',  val: a.dMinus ? '−'+numFmt(a.dMinus) : '—', unit:'m', col:'var(--text-2)' },
+    { lbl:'Allure moy.', val: paceFmt(a.pace), unit:'/km',         col:'var(--text-1)' },
+    { lbl:'FC moyenne',  val: a.avgHR || '—', unit: a.avgHR ? 'bpm' : '', col:'var(--blue)' },
+    { lbl:'FC max',      val: a.maxHR || '—', unit: a.maxHR ? 'bpm' : '', col:'var(--blue)' },
+    { lbl:'Calories',    val: a.calories ? numFmt(a.calories) : '—', unit: a.calories ? 'kcal' : '', col:'var(--purple)' },
+    { lbl:'D− / D+',    val: a.dPlus ? Math.round(a.dMinus/a.dPlus*100)+'%' : '—', unit:'ratio', col:'var(--text-3)' },
+  ];
+  document.getElementById('detail-kpi').innerHTML = kpis.map(k =>
+    `<div class="det-kpi">
+      <div class="det-kpi-lbl">${k.lbl}</div>
+      <div class="det-kpi-val" style="color:${k.col}">${k.val}</div>
+      <div class="det-kpi-unit">${k.unit}</div>
+    </div>`
+  ).join('');
+
+  // HR profile — km axis
+  const prof = a.profile || [];
+  if (prof.length > 2) {
+    const hrKmData = prof.map(p => ({ label: p.km.toFixed(1)+'km', value: p.hr }));
+    renderLine('det-chart-hr-km', hrKmData, { color: `${si.css}`, unit:'bpm' });
+  } else {
+    const el = document.getElementById('det-chart-hr-km');
+    if (el) el.innerHTML = `<div style="height:100%;display:flex;align-items:center;justify-content:center;color:var(--text-3);font-size:13px">Pas de données HR dans ce fichier TCX</div>`;
+  }
+
+  // HR profile — D+ axis
+  if (prof.length > 2) {
+    const hrDpData = prof.map(p => ({ label: '+'+p.dp+'m', value: p.hr }));
+    renderLine('det-chart-hr-dp', hrDpData, { color: 'var(--blue)', unit:'bpm' });
+  } else {
+    const el = document.getElementById('det-chart-hr-dp');
+    if (el) el.innerHTML = `<div style="height:100%;display:flex;align-items:center;justify-content:center;color:var(--text-3);font-size:13px">—</div>`;
+  }
+
+  // HR Zones (% HRmax)
+  const refMax = a.maxHR || 185;
+  const zones = [
+    { lbl:'Z1', name:'Récupération', pct:[0,   .60], color:'#5090D8' },
+    { lbl:'Z2', name:'Endurance',    pct:[.60, .70], color:'#36A868' },
+    { lbl:'Z3', name:'Tempo',        pct:[.70, .80], color:'#D4A010' },
+    { lbl:'Z4', name:'Seuil',        pct:[.80, .90], color:'#E05030' },
+    { lbl:'Z5', name:'VO₂max',       pct:[.90, 1.1], color:'#9060D8' },
+  ];
+  const validHR = prof.map(p=>p.hr).filter(h=>h>30&&h<250);
+  const total = validHR.length || 1;
+  const counts = zones.map(z => ({
+    ...z,
+    count: validHR.filter(h => h >= z.pct[0]*refMax && h < z.pct[1]*refMax).length
+  }));
+  const zEl = document.getElementById('det-zones');
+  if (validHR.length < 3) {
+    zEl.innerHTML = `<div style="color:var(--text-3);font-size:13px;padding:8px 0">Pas de données HR</div>`;
+  } else {
+    zEl.innerHTML = counts.map(z => {
+      const pct = Math.round(z.count/total*100);
+      const range = `${Math.round(z.pct[0]*refMax)}–${Math.round(z.pct[1]*refMax)} bpm`;
+      return `<div class="zone-row">
+        <div class="zone-lbl" style="color:${z.color}">${z.lbl}</div>
+        <div class="zone-name">${z.name}</div>
+        <div class="zone-track"><div class="zone-fill" style="width:${pct}%;background:${z.color}"></div></div>
+        <div class="zone-pct">${pct}%</div>
+      </div>`;
+    }).join('') + `<div style="font-family:var(--f-m);font-size:10px;color:var(--text-3);margin-top:10px">Référence FCmax : ${refMax} bpm</div>`;
+  }
+
+  // Infos complémentaires
+  const vitMoy = a.distance > 0 && a.duration > 0 ? ((a.distance/1000)/(a.duration/3600)).toFixed(1) : '—';
+  const dpkm   = a.distance > 0 ? Math.round(a.dPlus/(a.distance/1000)) : '—';
+  document.getElementById('det-extra').innerHTML = `
+    <div><span style="color:var(--text-3);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">Vitesse moyenne</span><br>
+      <span style="font-family:var(--f-m);color:var(--text-1)">${vitMoy} km/h</span></div>
+    <div><span style="color:var(--text-3);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">D+ par km</span><br>
+      <span style="font-family:var(--f-m);color:var(--green)">${dpkm} m/km</span></div>
+    <div><span style="color:var(--text-3);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">Points tracklog</span><br>
+      <span style="font-family:var(--f-m);color:var(--text-2)">${prof.length} points profil</span></div>
+    <div><span style="color:var(--text-3);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">Sport</span><br>
+      <span style="font-family:var(--f-m);color:var(--text-1)">${si.label}</span></div>
+  `;
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -1302,3 +1276,5 @@ dz.addEventListener('drop',e=>{
 activities = loadDB();
 renderDashboard();
 </script>
+
+</body></html>
