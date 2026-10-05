@@ -300,14 +300,32 @@ table{border-collapse:collapse}
 
 /* Laps table */
 .laps-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
-.laps-table th{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);text-align:left;padding:5px 8px 5px 0;border-bottom:1px solid var(--border)}
-.laps-table td{padding:6px 8px 6px 0;border-bottom:1px solid var(--border);vertical-align:middle}
+.laps-table th{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);text-align:left;padding:7px 12px 7px 0;border-bottom:1px solid var(--border);white-space:nowrap}
+.laps-table th:first-child{padding-left:4px}
+.laps-table td{padding:8px 12px 8px 0;border-bottom:1px solid var(--border-sub);vertical-align:middle}
+.laps-table td:first-child{padding-left:4px}
+.laps-table tbody tr:hover td{background:rgba(0,0,0,.018)}
 .laps-table tr:last-child td{border-bottom:none}
 .lap-rest td{color:var(--text-3);background:rgba(0,0,0,.015)}
 .lap-idx{font-family:var(--f-d);font-weight:700;font-size:14px;color:var(--accent);width:28px;text-align:center}
 .lap-badge{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.06em;padding:2px 7px;border-radius:20px}
 .lap-badge-effort{background:rgba(192,82,36,.12);color:var(--accent)}
 .lap-badge-rest{background:rgba(100,100,100,.1);color:var(--text-3)}
+/* Chart axis toggle */
+.chart-axis-toggle{display:flex;gap:2px;background:var(--bg);border-radius:8px;padding:3px}
+.axis-btn{border:none;background:none;padding:4px 12px;border-radius:6px;font-size:12px;font-weight:600;
+  color:var(--text-3);cursor:pointer;transition:all .15s;letter-spacing:.02em}
+.axis-btn.active{background:var(--surface-raised);color:var(--text-1);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.axis-btn:hover:not(.active){color:var(--text-2)}
+
+/* Profile form */
+.profile-field{display:flex;flex-direction:column;gap:5px}
+.profile-label{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3)}
+.profile-input{width:80px;padding:7px 10px;border:1.5px solid var(--border);border-radius:var(--r-btn);font-size:15px;font-family:var(--f-m);background:var(--surface-raised);color:var(--text-1);outline:none;transition:border-color .15s}
+.profile-input:focus{border-color:var(--accent)}
+.profile-history-max{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-sub)}
+.profile-history-max:last-child{border-bottom:none}
+
 /* Zone bar */
 .zone-bar-wrap{display:flex;flex-direction:column;gap:7px;margin-top:8px}
 .zone-row{display:flex;align-items:center;gap:9px;font-size:12px}
@@ -373,6 +391,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     <button class="nav-btn active" data-view="dashboard" onclick="go('dashboard')">Tableau de bord</button>
     <button class="nav-btn" data-view="activities" onclick="go('activities')">Activités</button>
     <button class="nav-btn" data-view="import" onclick="go('import')">Importer</button>
+    <button class="nav-btn" data-view="profile" onclick="go('profile')">Profil</button>
   </div>
   <div class="nav-meta" id="nav-meta"></div>
 </nav>
@@ -454,6 +473,53 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     </div>
   </div>
 
+  <!-- ── PROFILE ── -->
+  <div class="view" id="view-profile">
+    <div class="view-header">
+      <div>
+        <div class="view-eyebrow">Paramètres athlète</div>
+        <div class="view-title">Profil</div>
+      </div>
+    </div>
+    <div style="max-width:520px;display:flex;flex-direction:column;gap:16px">
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Fréquence cardiaque de référence</div></div>
+        <p style="font-size:13px;color:var(--text-2);margin:0 0 16px">
+          La FCmax personnelle sert à calibrer vos zones d'intensité (Z1 à Z5).
+          Si non renseignée, l'app utilise la FC max atteinte dans chaque séance — ce qui sous-estime les zones si vous n'avez pas poussé à fond.
+        </p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+          <div class="profile-field">
+            <label class="profile-label">FCmax (bpm)</label>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input class="profile-input" type="number" id="p-fcmax" min="100" max="250" placeholder="ex. 185">
+              <span style="font-size:12px;color:var(--text-3)">bpm</span>
+            </div>
+            <div style="font-size:11px;color:var(--text-3);margin-top:4px">Votre fréquence cardiaque maximale</div>
+          </div>
+          <div class="profile-field">
+            <label class="profile-label">FC repos (bpm)</label>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input class="profile-input" type="number" id="p-fcrepos" min="30" max="100" placeholder="ex. 45">
+              <span style="font-size:12px;color:var(--text-3)">bpm</span>
+            </div>
+            <div style="font-size:11px;color:var(--text-3);margin-top:4px">FC au réveil, mesurée au calme</div>
+          </div>
+        </div>
+        <div id="profile-fcmax-hint" style="font-size:12px;color:var(--text-3);margin-bottom:16px;display:none"></div>
+        <button class="btn-primary" onclick="saveProfileForm()">Enregistrer</button>
+        <span id="profile-save-ok" style="margin-left:12px;font-size:12px;color:var(--green);display:none">✓ Enregistré</span>
+      </div>
+
+      <div class="card" id="profile-history-card" style="display:none">
+        <div class="card-header"><div class="card-title">FCmax historique</div></div>
+        <div id="profile-history"></div>
+      </div>
+
+    </div>
+  </div>
+
   <!-- ── DETAIL ── -->
   <div class="view" id="view-detail">
     <div class="detail-back" onclick="go(detailFrom)" id="detail-back">
@@ -469,29 +535,34 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
       </div>
     </div>
     <div class="detail-kpi" id="detail-kpi"></div>
-    <div class="detail-grid-2" style="margin-bottom:13px">
-      <div class="card">
-        <div class="card-header"><div class="card-title">Fréquence cardiaque — profil km</div></div>
-        <div class="chart-area" id="det-chart-hr-km" style="height:200px"></div>
+
+    <!-- Combined HR chart (full width) -->
+    <div class="card" style="margin-bottom:13px">
+      <div class="card-header">
+        <div class="card-title">Fréquence cardiaque</div>
+        <div class="chart-axis-toggle">
+          <button class="axis-btn active" id="axis-btn-km" onclick="switchHRChart('km')">Par km</button>
+          <button class="axis-btn" id="axis-btn-dp" onclick="switchHRChart('dp')">Par D+</button>
+        </div>
       </div>
+      <div class="chart-area" id="det-chart-hr" style="height:220px"></div>
+    </div>
+
+    <div class="detail-grid-2" style="margin-bottom:13px">
       <div class="card">
         <div class="card-header"><div class="card-title">Zones d'intensité</div></div>
         <div class="zone-bar-wrap" id="det-zones"></div>
-      </div>
-    </div>
-    <div class="detail-grid-2" style="margin-bottom:0">
-      <div class="card">
-        <div class="card-header"><div class="card-title">FC vs Dénivelé cumulé</div></div>
-        <div class="chart-area" id="det-chart-hr-dp" style="height:180px"></div>
-      </div>
-      <div class="card" id="det-laps-card" style="display:none">
-        <div class="card-header"><div class="card-title">Intervalles</div></div>
-        <div id="det-laps"></div>
       </div>
       <div class="card">
         <div class="card-header"><div class="card-title">Infos complémentaires</div></div>
         <div id="det-extra" style="padding:4px 0;font-size:13.5px;color:var(--text-2);line-height:2.2"></div>
       </div>
+    </div>
+
+    <!-- Intervalles — pleine largeur -->
+    <div class="card" id="det-laps-card" style="display:none;margin-bottom:0">
+      <div class="card-header"><div class="card-title">Intervalles</div></div>
+      <div id="det-laps"></div>
     </div>
   </div>
 
@@ -510,7 +581,8 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 ════════════════════════════════════════════════════════════════ */
 const TCX_NS = 'http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2';
 const ACT_NS = 'http://www.garmin.com/xmlschemas/ActivityExtension/v2';
-const STORE  = 'traillog_v2';
+const STORE         = 'traillog_v2';
+const PROFILE_STORE = 'traillog_profile';
 
 const SPORT = {
   Running: { label: 'Course / Trail', abbr: 'RUN', css: 'var(--s-run)',  pill: '#C53E10' },
@@ -534,10 +606,26 @@ let sortKey       = 'date';
 let sortDir       = 'desc';
 let currentActId  = null;
 let detailFrom    = 'dashboard';
+let detChartMode  = 'km';   // 'km' | 'dp'
+let detChartColor = 'var(--accent)';
 
 /* ════════════════════════════════════════════════════════════════
    STORAGE
 ════════════════════════════════════════════════════════════════ */
+/* ── Athlete profile ──────────────────────────────────────────────── */
+let athleteProfile = { fcmax: 0, fcrepos: 0, nom: '' };
+
+function loadProfile() {
+  try {
+    const raw = localStorage.getItem(PROFILE_STORE);
+    if (raw) athleteProfile = { ...athleteProfile, ...JSON.parse(raw) };
+  } catch(e) {}
+}
+function saveProfile() {
+  try { localStorage.setItem(PROFILE_STORE, JSON.stringify(athleteProfile)); }
+  catch(e) { console.warn('profile save:', e); }
+}
+
 function loadDB() {
   try {
     const raw = localStorage.getItem(STORE);
@@ -618,8 +706,13 @@ function parseTCX(xml) {
       if (t) totalTime += dur;
       if (c) totalCal  += parseInt(c) || 0;
       if (lapMaxHRv) lapMaxHR = Math.max(lapMaxHR, lapMaxHRv);
-      const isRest = intensity.toLowerCase() === 'resting';
-      if (!isRest) intervalIdx++;
+      const intLow = intensity.toLowerCase();
+      const isRest    = intLow === 'resting';
+      const isWarmUp  = intLow === 'warmup';
+      const isCoolDown= intLow === 'cooldown';
+      const isActive  = !isRest && !isWarmUp && !isCoolDown;
+      if (isActive) intervalIdx++;
+      const lapLabel = isRest ? 'Récupération' : isWarmUp ? 'Échauffement' : isCoolDown ? 'Retour au calme' : 'Course à pied';
       // D+/D- from trackpoints inside this lap
       const lapTps = lap.getElementsByTagNameNS(TCX_NS, 'Trackpoint');
       const lapAlts = [];
@@ -636,8 +729,8 @@ function parseTCX(xml) {
         if (mwEl.length) maxWatts = parseInt(mwEl[0].textContent) || 0;
       }
       parsedLaps.push({
-        idx: isRest ? null : intervalIdx,
-        intensity: isRest ? 'Récupération' : 'Effort',
+        idx: isActive ? intervalIdx : null,
+        intensity: lapLabel,
         duration: dur,
         distance: dist,
         pace: dist > 50 ? dur / (dist / 1000) : 0,
@@ -715,6 +808,33 @@ const dateFmt  = d => d.toLocaleDateString('fr-FR',{day:'numeric',month:'short',
 const dateShort= d => d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
 
 /* ════════════════════════════════════════════════════════════════
+   HR CHART TOGGLE
+════════════════════════════════════════════════════════════════ */
+function switchHRChart(mode, initial) {
+  if (!initial) detChartMode = mode;
+  // Update button states
+  const btnKm = document.getElementById('axis-btn-km');
+  const btnDp = document.getElementById('axis-btn-dp');
+  if (btnKm) btnKm.classList.toggle('active', mode === 'km');
+  if (btnDp) btnDp.classList.toggle('active', mode === 'dp');
+  // Get profile data from current activity
+  const a = activities.find(x => x.id === currentActId);
+  const prof = a ? (a.profile || []) : [];
+  if (prof.length < 3) {
+    const el = document.getElementById('det-chart-hr');
+    if (el) el.innerHTML = `<div style="height:100%;display:flex;align-items:center;justify-content:center;color:var(--text-3);font-size:13px">Pas de données FC dans ce fichier TCX</div>`;
+    return;
+  }
+  if (mode === 'km') {
+    const data = prof.map(p => ({ label: p.km.toFixed(1)+'km', value: p.hr }));
+    renderLine('det-chart-hr', data, { color: detChartColor, unit:'bpm' });
+  } else {
+    const data = prof.map(p => ({ label: '+'+p.dp+'m', value: p.hr }));
+    renderLine('det-chart-hr', data, { color: detChartColor, unit:'bpm' });
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
    NAVIGATION
 ════════════════════════════════════════════════════════════════ */
 function go(view) {
@@ -729,6 +849,7 @@ function go(view) {
   if      (view==='dashboard')  renderDashboard();
   else if (view==='activities') renderActivities();
   else if (view==='detail')     renderDetail();
+  else if (view==='profile')    renderProfile();
   updateNavMeta();
 }
 
@@ -1230,27 +1351,19 @@ function renderDetail() {
     </div>`
   ).join('');
 
-  // HR profile — km axis
+  // Combined HR chart — render in current mode (default: km)
   const prof = a.profile || [];
-  if (prof.length > 2) {
-    const hrKmData = prof.map(p => ({ label: p.km.toFixed(1)+'km', value: p.hr }));
-    renderLine('det-chart-hr-km', hrKmData, { color: `${si.css}`, unit:'bpm' });
-  } else {
-    const el = document.getElementById('det-chart-hr-km');
-    if (el) el.innerHTML = `<div style="height:100%;display:flex;align-items:center;justify-content:center;color:var(--text-3);font-size:13px">Pas de données HR dans ce fichier TCX</div>`;
-  }
+  detChartColor = si.css;  // expose color for toggle re-render
+  switchHRChart(detChartMode, true);   // true = initial render, don't re-look up activity
 
-  // HR profile — D+ axis
-  if (prof.length > 2) {
-    const hrDpData = prof.map(p => ({ label: '+'+p.dp+'m', value: p.hr }));
-    renderLine('det-chart-hr-dp', hrDpData, { color: 'var(--blue)', unit:'bpm' });
-  } else {
-    const el = document.getElementById('det-chart-hr-dp');
-    if (el) el.innerHTML = `<div style="height:100%;display:flex;align-items:center;justify-content:center;color:var(--text-3);font-size:13px">—</div>`;
-  }
-
-  // HR Zones (% HRmax)
-  const refMax = a.maxHR || 185;
+  // HR Zones (% HRmax) — use athlete profile FCmax if configured
+  const profileFcmax = athleteProfile.fcmax && athleteProfile.fcmax > 100 ? athleteProfile.fcmax : 0;
+  const refMax    = profileFcmax || a.maxHR || 185;
+  const refSource = profileFcmax
+    ? `FCmax athlète (profil)`
+    : a.maxHR
+      ? `FCmax séance — <a href="#" onclick="go('profile');return false" style="color:var(--accent)">configurer mon profil</a>`
+      : `valeur par défaut`;
   const zones = [
     { lbl:'Z1', name:'Récupération', pct:[0,   .60], color:'#5090D8' },
     { lbl:'Z2', name:'Endurance',    pct:[.60, .70], color:'#36A868' },
@@ -1277,7 +1390,10 @@ function renderDetail() {
         <div class="zone-track"><div class="zone-fill" style="width:${pct}%;background:${z.color}"></div></div>
         <div class="zone-pct">${pct}%</div>
       </div>`;
-    }).join('') + `<div style="font-family:var(--f-m);font-size:10px;color:var(--text-3);margin-top:10px">Référence FCmax : ${refMax} bpm</div>`;
+    }).join('') + `<div style="font-family:var(--f-m);font-size:11px;color:var(--text-3);margin-top:10px;line-height:1.5">
+      Référence FCmax : <strong style="color:${profileFcmax?'var(--text-1)':'var(--accent)'}">${refMax} bpm</strong>
+      &nbsp;·&nbsp;${refSource}
+    </div>`;
   }
 
   // Intervalles
@@ -1285,7 +1401,7 @@ function renderDetail() {
   const lapsDiv  = document.getElementById('det-laps');
   if (a.laps && a.laps.length > 1) {
     lapsCard.style.display = '';
-    const effortLaps = a.laps.filter(l => l.intensity === 'Effort');
+    const effortLaps = a.laps.filter(l => l.intensity === 'Course à pied');
     const hasRest = a.laps.some(l => l.intensity === 'Récupération');
     const hasPower = a.laps.some(l => l.avgWatts > 0);
     // Résumé efforts
@@ -1308,9 +1424,16 @@ function renderDetail() {
     let rows = '';
     a.laps.forEach((l,i) => {
       const isRest = l.intensity === 'Récupération';
-      const badge = isRest
+      const isRestRow = l.intensity === 'Récupération';
+      const isWarmRow = l.intensity === 'Échauffement';
+      const isCoolRow = l.intensity === 'Retour au calme';
+      const badge = isRestRow
         ? `<span class="lap-badge lap-badge-rest">Récup.</span>`
-        : `<span class="lap-badge lap-badge-effort">Effort</span>`;
+        : isWarmRow
+        ? `<span class="lap-badge" style="background:rgba(80,130,220,.13);color:#3A6AB4">Échauff.</span>`
+        : isCoolRow
+        ? `<span class="lap-badge" style="background:rgba(80,150,100,.13);color:#2E7A50">Retour calme</span>`
+        : `<span class="lap-badge lap-badge-effort">Course</span>`;
       const idxCell = isRest ? '' : l.idx;
       const durStr = l.duration >= 60
         ? `${Math.floor(l.duration/60)}:${String(Math.round(l.duration%60)).padStart(2,'0')}`
@@ -1326,7 +1449,7 @@ function renderDetail() {
       const powerCols = hasPower
         ? `<td style="color:var(--purple)">${avgWStr}</td><td style="color:var(--purple);opacity:.7">${maxWStr}</td>`
         : '';
-      rows += `<tr class="${isRest?'lap-rest':''}">
+      rows += `<tr class="${isRestRow||isWarmRow||isCoolRow?'lap-rest':''}">
         <td class="lap-idx">${idxCell}</td>
         <td>${badge}</td>
         <td style="font-family:var(--f-m)">${durStr}</td>
@@ -1354,13 +1477,28 @@ function renderDetail() {
   // Infos complémentaires
   const vitMoy = a.distance > 0 && a.duration > 0 ? ((a.distance/1000)/(a.duration/3600)).toFixed(1) : '—';
   const dpkm   = a.distance > 0 ? Math.round(a.dPlus/(a.distance/1000)) : '—';
+  // % time in Z3+ (intensity zones)
+  const z3min  = Math.round(0.70 * refMax);
+  const validProfHR = prof.map(p=>p.hr).filter(h=>h>30&&h<250);
+  const pctZ3up = validProfHR.length
+    ? Math.round(validProfHR.filter(h=>h>=z3min).length / validProfHR.length * 100)
+    : null;
+  // Reserve power if FC repos configured
+  const fcrepos = athleteProfile.fcrepos && athleteProfile.fcrepos > 20 ? athleteProfile.fcrepos : 0;
+  const fcRes   = fcrepos && a.avgHR ? Math.round(((a.avgHR - fcrepos)/(refMax - fcrepos))*100) : null;
+  const extraRow3 = fcRes !== null
+    ? `<div><span style="color:var(--text-3);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">FC réserve moy.</span><br>
+        <span style="font-family:var(--f-m);color:var(--blue)">${fcRes}%</span></div>`
+    : pctZ3up !== null
+    ? `<div><span style="color:var(--text-3);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">Temps Z3+</span><br>
+        <span style="font-family:var(--f-m);color:var(--accent)">${pctZ3up}%</span></div>`
+    : `<div></div>`;
   document.getElementById('det-extra').innerHTML = `
     <div><span style="color:var(--text-3);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">Vitesse moyenne</span><br>
       <span style="font-family:var(--f-m);color:var(--text-1)">${vitMoy} km/h</span></div>
     <div><span style="color:var(--text-3);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">D+ par km</span><br>
       <span style="font-family:var(--f-m);color:var(--green)">${dpkm} m/km</span></div>
-    <div><span style="color:var(--text-3);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">Points tracklog</span><br>
-      <span style="font-family:var(--f-m);color:var(--text-2)">${prof.length} points profil</span></div>
+    ${extraRow3}
     <div><span style="color:var(--text-3);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">Sport</span><br>
       <span style="font-family:var(--f-m);color:var(--text-1)">${si.label}</span></div>
   `;
@@ -1401,8 +1539,76 @@ dz.addEventListener('drop',e=>{
 });
 
 /* ════════════════════════════════════════════════════════════════
+   PROFILE
+════════════════════════════════════════════════════════════════ */
+function renderProfile() {
+  // Fill inputs with saved values
+  const fxEl = document.getElementById('p-fcmax');
+  const frEl = document.getElementById('p-fcrepos');
+  if (fxEl) fxEl.value = athleteProfile.fcmax || '';
+  if (frEl) frEl.value = athleteProfile.fcrepos || '';
+
+  // Historical max across all activities
+  const histCard = document.getElementById('profile-history-card');
+  const histDiv  = document.getElementById('profile-history');
+  const hint     = document.getElementById('profile-fcmax-hint');
+  if (activities.length && histCard && histDiv) {
+    const allMaxHR = activities
+      .filter(a => a.maxHR > 0)
+      .sort((a,b) => b.maxHR - a.maxHR)
+      .slice(0, 5);
+    if (allMaxHR.length) {
+      const globalMax = allMaxHR[0].maxHR;
+      if (hint) {
+        hint.style.display = '';
+        hint.innerHTML = `💡 FC max historique sur vos ${activities.length} séance${activities.length>1?'s':''} : <strong>${globalMax} bpm</strong> — utilisez cette valeur si vous n'êtes pas sûr de votre FCmax.`;
+      }
+      histCard.style.display = '';
+      histDiv.innerHTML = `<p style="font-size:12px;color:var(--text-3);margin:0 0 10px">
+        Les 5 séances avec la FC la plus élevée, pour vous aider à estimer votre FCmax réelle.
+      </p>` + allMaxHR.map(a => {
+        const si = sportInfo(a.sport);
+        return `<div class="profile-history-max">
+          <span class="sport-badge" style="background:${si.css}">${si.abbr}</span>
+          <span style="flex:1;font-size:13px;color:var(--text-2)">${a.name || dateFmt(a.date)}</span>
+          <span style="font-size:11px;color:var(--text-3)">${dateFmt(a.date)}</span>
+          <span style="font-family:var(--f-m);font-size:15px;color:var(--blue);min-width:60px;text-align:right">${a.maxHR} bpm</span>
+          <button onclick="applyHistoricMax(${a.maxHR})" style="margin-left:8px;padding:3px 8px;font-size:11px;border:1.5px solid var(--border);border-radius:5px;background:var(--surface);cursor:pointer;color:var(--text-2)">Utiliser</button>
+        </div>`;
+      }).join('');
+    } else {
+      histCard.style.display = 'none';
+    }
+  } else if (histCard) {
+    histCard.style.display = 'none';
+  }
+}
+
+function applyHistoricMax(val) {
+  const el = document.getElementById('p-fcmax');
+  if (el) { el.value = val; el.focus(); }
+}
+
+function saveProfileForm() {
+  const fcmax   = parseInt(document.getElementById('p-fcmax')?.value)   || 0;
+  const fcrepos = parseInt(document.getElementById('p-fcrepos')?.value) || 0;
+  if (fcmax && (fcmax < 100 || fcmax > 250)) {
+    alert('FCmax doit être entre 100 et 250 bpm.'); return;
+  }
+  if (fcrepos && (fcrepos < 20 || fcrepos > 100)) {
+    alert('FC repos doit être entre 20 et 100 bpm.'); return;
+  }
+  athleteProfile.fcmax   = fcmax;
+  athleteProfile.fcrepos = fcrepos;
+  saveProfile();
+  const ok = document.getElementById('profile-save-ok');
+  if (ok) { ok.style.display=''; setTimeout(()=>ok.style.display='none', 2500); }
+}
+
+/* ════════════════════════════════════════════════════════════════
    INIT
 ════════════════════════════════════════════════════════════════ */
+loadProfile();
 activities = loadDB();
 renderDashboard();
 </script>
