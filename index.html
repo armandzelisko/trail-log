@@ -356,6 +356,19 @@ table{border-collapse:collapse}
 .tt-lbl{font-size:11px;color:var(--text-3);margin-bottom:2px;font-weight:500;letter-spacing:.04em}
 .tt-val{font-family:var(--f-m);font-size:15px;color:var(--text-1);font-weight:500}
 
+/* ── ACWR ───────────────────────────────────────────────────────── */
+.acwr-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding:4px 0 8px}
+.acwr-metric{display:flex;flex-direction:column;gap:6px}
+.acwr-label{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3)}
+.acwr-ratio{font-family:var(--f-d);font-size:38px;font-weight:700;letter-spacing:.02em;line-height:1}
+.acwr-gauge{position:relative;height:6px;background:var(--bg);border-radius:3px;overflow:visible;margin:2px 0}
+.acwr-gauge-track{position:absolute;inset:0;border-radius:3px;overflow:hidden}
+.acwr-gauge-fill{height:100%;border-radius:3px;transition:width .4s}
+.acwr-gauge-zones{position:absolute;inset:0;pointer-events:none}
+.acwr-gauge-marker{position:absolute;top:-3px;width:1.5px;height:12px;background:var(--border);border-radius:1px}
+.acwr-sub{font-size:11px;color:var(--text-3);line-height:1.6}
+.acwr-zone-label{display:inline-block;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;margin-top:2px}
+
 /* ── Responsive ─────────────────────────────────────────────────── */
 @media(max-width:900px){
   .kpi-grid{grid-template-columns:repeat(3,1fr)}
@@ -424,6 +437,14 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
         <div class="chart-area" id="chart-hr" style="height:170px"></div>
       </div>
     </div>
+    <div class="card" id="acwr-card" style="margin-bottom:18px;display:none">
+      <div class="card-header">
+        <div class="card-title">Charge d'entraînement</div>
+        <div style="font-size:11px;color:var(--text-3);font-weight:500">ACWR — EWMA 7j / 28j</div>
+      </div>
+      <div id="acwr-body"></div>
+    </div>
+
     <div class="card" id="recent-card">
       <div class="card-header">
         <div class="card-title">Activités récentes</div>
@@ -1239,8 +1260,108 @@ function renderDashboard() {
 
   renderWeeklyChart();
   renderHRChart();
+  renderACWR();
   renderRecentTable();
   updateNavMeta();
+}
+
+/* ── ACWR-EWMA ─────────────────────────────────────────────────── */
+function calcACWR() {
+  if (activities.length < 2) return null;
+  const λa = 2 / (7 + 1);   // acute ~7j
+  const λc = 2 / (28 + 1);  // chronic ~28j
+
+  // Daily totals
+  const dayMap = {};
+  activities.forEach(a => {
+    const key = a.date.toISOString().slice(0,10);
+    if (!dayMap[key]) dayMap[key] = { dist:0, dp:0, dur:0 };
+    dayMap[key].dist += a.distance / 1000;   // km
+    dayMap[key].dp   += a.dPlus;              // m
+    dayMap[key].dur  += a.duration / 3600;    // heures
+  });
+
+  const sorted = activities.slice().sort((a,b) => a.date - b.date);
+  const start  = new Date(sorted[0].date); start.setHours(0,0,0,0);
+  const today  = new Date(); today.setHours(0,0,0,0);
+
+  let ea = {dist:0, dp:0, dur:0};
+  let ec = {dist:0, dp:0, dur:0};
+  const d = new Date(start);
+  while (d <= today) {
+    const key  = d.toISOString().slice(0,10);
+    const load = dayMap[key] || {dist:0, dp:0, dur:0};
+    ['dist','dp','dur'].forEach(m => {
+      ea[m] = λa * load[m] + (1-λa) * ea[m];
+      ec[m] = λc * load[m] + (1-λc) * ec[m];
+    });
+    d.setDate(d.getDate()+1);
+  }
+  const acwr = {};
+  ['dist','dp','dur'].forEach(m => { acwr[m] = ec[m]>0 ? ea[m]/ec[m] : null; });
+  return { acwr, ea, ec };
+}
+
+function acwrZone(r) {
+  if (r === null) return { label:'—', color:'var(--text-3)', bg:'transparent', txt:'Données insuffisantes' };
+  if (r < 0.8)   return { label:'Sous-charge', color:'var(--blue)',   bg:'rgba(44,95,150,.12)', txt:'Charge insuffisante' };
+  if (r < 1.3)   return { label:'Zone optimale', color:'var(--green)', bg:'rgba(30,122,74,.12)', txt:'Progression saine' };
+  if (r < 1.5)   return { label:'Attention', color:'#C07800', bg:'rgba(192,120,0,.12)', txt:'Risque modéré' };
+  return             { label:'Zone rouge', color:'var(--accent)', bg:'rgba(197,62,16,.12)', txt:'Risque de blessure' };
+}
+
+function renderACWR() {
+  const card = $('acwr-card');
+  const body = $('acwr-body');
+  if (!activities.length) { card.style.display='none'; return; }
+  const res = calcACWR();
+  if (!res) { card.style.display='none'; return; }
+  card.style.display = '';
+
+  const metrics = [
+    { key:'dist', label:'Distance', fmt: v => v.toFixed(1)+' km/j', acwrFmt: v => v !== null ? v.toFixed(2) : '—' },
+    { key:'dp',   label:'Dénivelé +', fmt: v => Math.round(v)+' m/j',  acwrFmt: v => v !== null ? v.toFixed(2) : '—' },
+    { key:'dur',  label:'Durée',    fmt: v => v.toFixed(2)+' h/j',  acwrFmt: v => v !== null ? v.toFixed(2) : '—' },
+  ];
+
+  // Gauge: 0 → 2.0, markers at 0.8, 1.3, 1.5
+  const gaugeW = r => r !== null ? Math.min(100, Math.max(0, (r/2)*100)) : 0;
+  const markerPct = v => (v/2)*100;
+
+  let html = '<div class="acwr-grid">';
+  metrics.forEach(m => {
+    const r   = res.acwr[m.key];
+    const z   = acwrZone(r);
+    const ea  = res.ea[m.key];
+    const ec  = res.ec[m.key];
+    const gw  = gaugeW(r);
+    html += `
+      <div class="acwr-metric">
+        <div class="acwr-label">${m.label}</div>
+        <div class="acwr-ratio" style="color:${z.color}">${r !== null ? r.toFixed(2) : '—'}</div>
+        <div class="acwr-gauge">
+          <div class="acwr-gauge-track"><div class="acwr-gauge-fill" style="width:${gw}%;background:${z.color}"></div></div>
+          <div class="acwr-gauge-zones">
+            <div class="acwr-gauge-marker" style="left:${markerPct(0.8)}%"></div>
+            <div class="acwr-gauge-marker" style="left:${markerPct(1.3)}%"></div>
+            <div class="acwr-gauge-marker" style="left:${markerPct(1.5)}%"></div>
+          </div>
+        </div>
+        <div><span class="acwr-zone-label" style="color:${z.color};background:${z.bg}">${z.label}</span></div>
+        <div class="acwr-sub">
+          Aigu (7j) : <strong>${m.fmt(ea)}</strong><br>
+          Chronique (28j) : <strong>${m.fmt(ec)}</strong>
+        </div>
+      </div>`;
+  });
+  html += '</div>';
+  html += `<div style="font-size:11px;color:var(--text-3);padding:10px 0 2px;border-top:1px solid var(--border-sub);margin-top:8px">
+    Zones : <span style="color:var(--blue)">■ &lt;0.8 sous-charge</span> &nbsp;
+    <span style="color:var(--green)">■ 0.8–1.3 optimal</span> &nbsp;
+    <span style="color:#C07800">■ 1.3–1.5 attention</span> &nbsp;
+    <span style="color:var(--accent)">■ &gt;1.5 danger</span>
+  </div>`;
+  body.innerHTML = html;
 }
 
 function renderWeeklyChart() {
@@ -1469,8 +1590,11 @@ function renderDetail() {
   const lapsDiv  = document.getElementById('det-laps');
   if (a.laps && a.laps.length > 1) {
     lapsCard.style.display = '';
-    const effortLaps = a.laps.filter(l => l.intensity === 'Course à pied');
-    const hasRest = a.laps.some(l => l.intensity === 'Récupération');
+    const effortLaps = a.laps.filter(l => {
+      const autoRec = l.intensity === 'Course à pied' && l.distance < 55 && l.duration >= 20;
+      return !autoRec && l.intensity === 'Course à pied';
+    });
+    const hasRest = a.laps.some(l => l.intensity === 'Récupération' || (l.intensity === 'Course à pied' && l.distance < 55 && l.duration >= 20));
     const hasPower = a.laps.some(l => l.avgWatts > 0);
     const poids    = athleteProfile.poids && athleteProfile.poids > 20 ? athleteProfile.poids : 0;
     const hasWkg   = hasPower && poids > 0;
@@ -1492,11 +1616,15 @@ function renderDetail() {
         ${avgEffortW?`<span>Puissance moy. <strong style="color:var(--purple)">${avgEffortW} W</strong></span>`:''}
       </div>` : '';
     let rows = '';
+    let renderCum = 0;
     a.laps.forEach((l,i) => {
-      const isRest = l.intensity === 'Récupération';
-      const isRestRow = l.intensity === 'Récupération';
-      const isWarmRow = l.intensity === 'Échauffement';
-      const isCoolRow = l.intensity === 'Retour au calme';
+      // Re-apply auto-detection at render time (covers activities imported before v15)
+      const autoRecovRender = l.intensity === 'Course à pied' && l.distance < 55 && l.duration >= 20;
+      const effectiveIntensity = autoRecovRender ? 'Récupération' : l.intensity;
+      const isRestRow = effectiveIntensity === 'Récupération';
+      const isWarmRow = effectiveIntensity === 'Échauffement';
+      const isCoolRow = effectiveIntensity === 'Retour au calme';
+      const isRest = isRestRow;
       const badge = isRestRow
         ? `<span class="lap-badge lap-badge-rest">Récup.</span>`
         : isWarmRow
@@ -1504,12 +1632,13 @@ function renderDetail() {
         : isCoolRow
         ? `<span class="lap-badge" style="background:rgba(80,150,100,.13);color:#2E7A50">Retour calme</span>`
         : `<span class="lap-badge lap-badge-effort">Course</span>`;
-      const idxCell = isRest ? '' : l.idx;
+      const idxCell = isRestRow || isWarmRow || isCoolRow ? '' : l.idx;
       const fmtDur = s => s >= 60
         ? `${Math.floor(s/60)}:${String(Math.round(s%60)).padStart(2,'0')}`
         : `0:${String(Math.round(s)).padStart(2,'0')}`;
       const durStr    = fmtDur(l.duration);
-      const cumStr    = l.cumTime ? fmtDur(l.cumTime) : '—';
+      renderCum += l.duration;
+      const cumStr    = fmtDur(renderCum);
       const distStr   = l.distance >= 100 ? `${(l.distance/1000).toFixed(2)} km` : `${Math.round(l.distance)} m`;
       const paceStr   = l.pace > 0 && !isRest ? paceFmt(l.pace) : '—';
       const hrStr     = l.avgHR   > 0 ? `${l.avgHR} bpm` : '—';
@@ -1518,12 +1647,15 @@ function renderDetail() {
       const dmStr     = l.dMinus  > 0 ? `−${Math.round(l.dMinus)} m` : '—';
       const avgWStr   = l.avgWatts > 0 ? `${l.avgWatts} W` : '—';
       const maxWStr   = l.maxWatts > 0 ? `${l.maxWatts} W` : '—';
-      const avgWkgStr = hasWkg && l.avgWatts > 0 ? `${(l.avgWatts/poids).toFixed(2)}` : (hasWkg ? '—' : '');
-      const maxWkgStr = hasWkg && l.maxWatts > 0 ? `${(l.maxWatts/poids).toFixed(2)}` : (hasWkg ? '—' : '');
-      const movStr    = l.movingTime > 0 ? fmtDur(l.movingTime) : '—';
+      const avgWkgStr = poids > 0 && l.avgWatts > 0 ? `${(l.avgWatts/poids).toFixed(2)}` : '—';
+      const maxWkgStr = poids > 0 && l.maxWatts > 0 ? `${(l.maxWatts/poids).toFixed(2)}` : '—';
       const powerCols = hasPower
-        ? `<td style="color:var(--purple)">${avgWStr}</td>${hasWkg?`<td style="color:var(--purple);opacity:.8">${avgWkgStr}</td>`:''}<td style="color:var(--purple);opacity:.7">${maxWStr}</td>${hasWkg?`<td style="color:var(--purple);opacity:.6">${maxWkgStr}</td>`:''}`
+        ? `<td style="color:var(--purple)">${avgWStr}</td><td style="color:var(--purple);opacity:.7">${maxWStr}</td>`
         : '';
+      const wkgCol = poids > 0
+        ? `<td style="color:var(--purple);opacity:.8;font-family:var(--f-m);font-size:12px">${avgWkgStr}</td>`
+        : '';
+      const movStr = l.movingTime > 0 ? fmtDur(l.movingTime) : '—';
       rows += `<tr class="${isRestRow||isWarmRow||isCoolRow?'lap-rest':''}">
         <td class="lap-idx">${idxCell}</td>
         <td>${badge}</td>
@@ -1536,15 +1668,17 @@ function renderDetail() {
         <td style="color:var(--green)">${dpStr}</td>
         <td style="color:var(--text-2)">${dmStr}</td>
         ${powerCols}
+        ${wkgCol}
         <td style="color:var(--text-3);font-family:var(--f-m)">${movStr}</td>
       </tr>`;
     });
     const powerHeaders = hasPower
-      ? `<th style="color:var(--purple)">W moy.</th>${hasWkg?`<th style="color:var(--purple);opacity:.8">W/kg</th>`:''}<th style="color:var(--purple);opacity:.7">W max</th>${hasWkg?`<th style="color:var(--purple);opacity:.6">W/kg max</th>`:''}`
+      ? `<th style="color:var(--purple)">W moy.</th><th style="color:var(--purple);opacity:.7">W max</th>`
       : '';
+    const wkgHeader = poids > 0 ? `<th style="color:var(--purple);opacity:.8">W/kg</th>` : '';
     lapsDiv.innerHTML = summaryHtml + `<div style="overflow-x:auto"><table class="laps-table">
       <thead><tr>
-        <th>#</th><th>Type</th><th>Durée</th><th style="color:var(--text-3)">Cumulé</th><th>Distance</th><th>Allure</th><th style="color:var(--blue)">FC moy.</th><th style="color:var(--blue)">FC max</th><th style="color:var(--green)">D+</th><th style="color:var(--text-2)">D−</th>${powerHeaders}<th style="color:var(--text-3)">Tps dépl.</th>
+        <th>#</th><th>Type</th><th>Durée</th><th style="color:var(--text-3)">Cumulé</th><th>Distance</th><th>Allure</th><th style="color:var(--blue)">FC moy.</th><th style="color:var(--blue)">FC max</th><th style="color:var(--green)">D+</th><th style="color:var(--text-2)">D−</th>${powerHeaders}${wkgHeader}<th style="color:var(--text-3)">Tps dépl.</th>
       </tr></thead><tbody>${rows}</tbody>
     </table></div>`;
   } else {
