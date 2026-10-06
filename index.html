@@ -169,6 +169,11 @@ table{border-collapse:collapse}
 .kpi-value.c-grn{color:var(--green)}
 .kpi-value.c-blu{color:var(--blue)}
 .kpi-foot{font-family:var(--f-m);font-size:11px;color:var(--text-3);margin-top:4px}
+.kpi-breakdown{margin-top:11px;padding-top:10px;border-top:1px solid var(--border-sub);display:flex;flex-direction:column;gap:5px}
+.kpi-brow{display:flex;align-items:center;gap:7px;font-size:12px}
+.kpi-bdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.kpi-bsport{color:var(--text-3);flex:1;font-weight:500}
+.kpi-bval{font-family:var(--f-m);font-size:11px;color:var(--text-2);font-weight:600}
 
 /* ── Cards ──────────────────────────────────────────────────────── */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-card);padding:17px 19px 15px}
@@ -357,7 +362,7 @@ table{border-collapse:collapse}
 .tt-val{font-family:var(--f-m);font-size:15px;color:var(--text-1);font-weight:500}
 
 /* ── ACWR ───────────────────────────────────────────────────────── */
-.acwr-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding:4px 0 8px}
+.acwr-grid{display:grid;grid-template-columns:1fr;gap:16px;padding:4px 0 8px}
 .acwr-metric{display:flex;flex-direction:column;gap:6px}
 .acwr-label{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3)}
 .acwr-ratio{font-family:var(--f-d);font-size:38px;font-weight:700;letter-spacing:.02em;line-height:1}
@@ -431,12 +436,18 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
       </div>
       <div class="chart-area" id="chart-weekly" style="height:200px"></div>
     </div>
-    <div class="card" id="acwr-card" style="margin-bottom:18px;display:none">
-      <div class="card-header">
-        <div class="card-title">Charge d'entraînement</div>
-        <div style="font-size:11px;color:var(--text-3);font-weight:500">ACWR — EWMA 7j / 28j</div>
+    <div id="metrics-row" style="display:none;grid-template-columns:1fr 1fr;gap:13px;margin-bottom:18px">
+      <div class="card" id="acwr-card">
+        <div class="card-header">
+          <div class="card-title">Charge d'entraînement</div>
+          <div style="font-size:11px;color:var(--text-3);font-weight:500">ACWR — EWMA 7j / 28j</div>
+        </div>
+        <div id="acwr-body"></div>
       </div>
-      <div id="acwr-body"></div>
+      <div class="card" id="secondary-metrics-card">
+        <div id="monotony-body"></div>
+        <div id="polar-body"></div>
+      </div>
     </div>
 
     <div class="card" id="recent-card">
@@ -611,6 +622,9 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
         <div id="det-extra" style="padding:4px 0;font-size:13.5px;color:var(--text-2);line-height:2.2"></div>
       </div>
     </div>
+
+    <!-- Découplement cardiaque — séances longues running uniquement -->
+    <div id="det-decoupling" style="display:none;margin-bottom:13px"></div>
 
     <!-- Intervalles — pleine largeur -->
     <div class="card" id="det-laps-card" style="display:none;margin-bottom:0">
@@ -1083,6 +1097,11 @@ function renderBar(cid, data, opts={}) {
     const fill=d.value>0?color:'var(--border-sub)';
     s+=`<rect class="c-bar" x="${x}" y="${y}" width="${bw}" height="${bh}" rx="3"
          style="fill:${fill}" data-label="${d.label}" data-val="${d.value}" data-unit="${unit}"/>`;
+    if(d.value>0 && bh>18){
+      const valLbl=unit==='km'?`${d.value.toFixed(1)}`:unit==='m'?`${Math.round(d.value)}`:Math.round(d.value);
+      s+=`<text x="${x+bw/2}" y="${y+13}" text-anchor="middle"
+           style="fill:rgba(255,255,255,.88);font-family:var(--f-u);font-size:10px;font-weight:600;pointer-events:none">${valLbl}</text>`;
+    }
     if(n<=6||i%2===0)
       s+=`<text x="${x+bw/2}" y="${H-5}" text-anchor="middle"
            style="fill:var(--text-3);font-family:var(--f-u);font-size:10px">${d.label}</text>`;
@@ -1267,11 +1286,35 @@ function renderMultiLine(cid, series, opts={}) {
 ════════════════════════════════════════════════════════════════ */
 function renderDashboard() {
   const month=thisMonth();
+
+  // Totaux globaux
   const dist =month.reduce((s,a)=>s+a.distance,0);
   const dp   =month.reduce((s,a)=>s+a.dPlus,0);
   const cal  =month.reduce((s,a)=>s+a.calories,0);
   const hrArr=month.filter(a=>a.avgHR>0);
   const avgHR=hrArr.length?Math.round(hrArr.reduce((s,a)=>s+a.avgHR,0)/hrArr.length):0;
+
+  // Totaux par sport pour la ventilation
+  const bySport = (metric, filter) => month.filter(filter||(() => true))
+    .reduce((s,a) => s + (metric==='dist'?a.distance:metric==='dp'?a.dPlus:a.calories), 0);
+
+  const dRun  = bySport('dist', a=>a.sport==='Running');
+  const dBike = bySport('dist', a=>a.sport==='Biking');
+  const dOth  = bySport('dist', a=>a.sport!=='Running'&&a.sport!=='Biking');
+
+  const dpRun  = bySport('dp', a=>a.sport==='Running');
+  const dpBike = bySport('dp', a=>a.sport==='Biking');
+  const dpOth  = bySport('dp', a=>a.sport!=='Running'&&a.sport!=='Biking');
+
+  const calRun  = bySport('cal', a=>a.sport==='Running');
+  const calBike = bySport('cal', a=>a.sport==='Biking');
+  const calMusc = bySport('cal', a=>a.sport==='Other');
+  const calOth  = bySport('cal', a=>a.sport==='Hiking');
+
+  // Lignes de ventilation (n'afficher que les sports présents)
+  const brow = (color, label, val) => val > 0
+    ? `<div class="kpi-brow"><span class="kpi-bdot" style="background:${color}"></span><span class="kpi-bsport">${label}</span><span class="kpi-bval">${val}</span></div>`
+    : '';
 
   const now=new Date();
   const mo=now.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
@@ -1282,16 +1325,32 @@ function renderDashboard() {
       <div class="kpi-label">Distance</div>
       <div class="kpi-value c-acc">${(dist/1000).toFixed(1)}</div>
       <div class="kpi-foot">km ce mois-ci</div>
+      <div class="kpi-breakdown">
+        ${brow('#C53E10','Course',(dRun/1000).toFixed(1)+' km')}
+        ${brow('#2C5F96','Vélo',(dBike/1000).toFixed(1)+' km')}
+        ${brow('#1E7A4A','Autre',(dOth/1000).toFixed(1)+' km')}
+      </div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">Dénivelé +</div>
       <div class="kpi-value c-grn">${numFmt(dp)}</div>
       <div class="kpi-foot">mètres ce mois-ci</div>
+      <div class="kpi-breakdown">
+        ${brow('#C53E10','Course',numFmt(dpRun)+' m')}
+        ${brow('#2C5F96','Vélo',numFmt(dpBike)+' m')}
+        ${brow('#1E7A4A','Autre',numFmt(dpOth)+' m')}
+      </div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">Calories</div>
       <div class="kpi-value c-acc" style="font-size:36px">${cal?numFmt(cal):'—'}</div>
       <div class="kpi-foot">${cal?'kcal ce mois-ci':'pas de données'}</div>
+      <div class="kpi-breakdown">
+        ${brow('#C53E10','Course',numFmt(calRun)+' kcal')}
+        ${brow('#2C5F96','Vélo',numFmt(calBike)+' kcal')}
+        ${brow('#7040B8','Musculation',numFmt(calMusc)+' kcal')}
+        ${brow('#1E7A4A','Autre',numFmt(calOth)+' kcal')}
+      </div>
     </div>
     `;
 
@@ -1299,6 +1358,47 @@ function renderDashboard() {
   renderACWR();
   renderRecentTable();
   updateNavMeta();
+}
+
+/* ── Monotonie & Strain (Foster) ───────────────────────────────── */
+function calcMonotony() {
+  if (!activities.length) return null;
+  const today = new Date(); today.setHours(23,59,59,999);
+  const week = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today); d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0,10);
+    const load = activities
+      .filter(a => a.date.toISOString().slice(0,10) === key)
+      .reduce((s, a) => s + a.duration/3600, 0);
+    week.push(load);
+  }
+  const total = week.reduce((s,v) => s+v, 0);
+  const mean  = total / 7;
+  const sd    = Math.sqrt(week.reduce((s,v) => s + Math.pow(v-mean, 2), 0) / 7);
+  if (sd < 0.001) return { monotony: null, strain: null, total };
+  const monotony = mean / sd;
+  const strain   = monotony * total;
+  return { monotony, strain, total };
+}
+
+/* ── Polarisation 80/20 (Seiler) — Running only ─────────────────── */
+function calcPolarisation() {
+  const fcmax = athleteProfile.fcmax && athleteProfile.fcmax > 100 ? athleteProfile.fcmax : 0;
+  if (!fcmax) return null;
+  const threshold = 0.70 * fcmax;
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 28);
+  const runActs = activities.filter(a => a.sport === 'Running' && a.date >= cutoff);
+  if (!runActs.length) return null;
+  let low = 0, high = 0;
+  runActs.forEach(a => {
+    (a.profile || []).forEach(p => {
+      if (p.hr > 30 && p.hr < 250) { if (p.hr < threshold) low++; else high++; }
+    });
+  });
+  const total = low + high;
+  if (total < 10) return null;
+  return { low: Math.round(low/total*100), high: Math.round(high/total*100) };
 }
 
 /* ── ACWR-EWMA ─────────────────────────────────────────────────── */
@@ -1346,17 +1446,79 @@ function acwrZone(r) {
   return             { label:'Zone rouge', color:'var(--accent)', bg:'rgba(197,62,16,.12)', txt:'Risque de blessure' };
 }
 
+function renderMonotonyPolar() {
+  const mEl = $('monotony-body');
+  const pEl = $('polar-body');
+
+  // Monotonie & Strain
+  const mon = calcMonotony();
+  if (mEl) {
+    if (!mon || mon.total < 0.1) {
+      mEl.innerHTML = '';
+    } else {
+      const m = mon.monotony;
+      const mColor = m === null ? 'var(--text-3)' : m < 1.5 ? 'var(--green)' : m < 2.0 ? '#C07800' : 'var(--accent)';
+      const mLabel = m === null ? '—' : m < 1.5 ? 'Bonne variabilité' : m < 2.0 ? 'Attention' : 'Trop monotone';
+      const mVal   = m !== null ? m.toFixed(1) : '—';
+      const sVal   = mon.strain !== null ? mon.strain.toFixed(1) : '—';
+      mEl.innerHTML = `
+        <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);margin-bottom:10px">Monotonie & Strain 7j</div>
+        <div style="display:flex;gap:24px;align-items:flex-end;margin-bottom:8px">
+          <div>
+            <div style="font-size:10px;color:var(--text-3);margin-bottom:2px">Monotonie</div>
+            <div style="font-family:var(--f-d);font-size:34px;font-weight:700;line-height:1;color:${mColor}">${mVal}</div>
+            <div style="margin-top:4px"><span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;color:${mColor};background:${mColor}22">${mLabel}</span></div>
+          </div>
+          <div style="padding-bottom:4px">
+            <div style="font-size:10px;color:var(--text-3);margin-bottom:2px">Strain</div>
+            <div style="font-family:var(--f-m);font-size:18px;font-weight:600;color:var(--text-2)">${sVal}</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text-3);line-height:1.5">Charge hebdo totale : <strong style="color:var(--text-2)">${mon.total.toFixed(1)} h</strong></div>`;
+    }
+  }
+
+  // Polarisation 80/20 (running only)
+  if (pEl) {
+    const pol = calcPolarisation();
+    if (!pol) {
+      pEl.innerHTML = athleteProfile.fcmax > 100
+        ? `<div style="font-size:11px;color:var(--text-3);padding-top:12px;border-top:1px solid var(--border-sub);margin-top:12px">Pas assez de données course (28j) pour la polarisation</div>`
+        : `<div style="font-size:11px;color:var(--accent);padding-top:12px;border-top:1px solid var(--border-sub);margin-top:12px">Configure ta FCmax dans le profil pour voir la polarisation</div>`;
+    } else {
+      const lowColor  = pol.low >= 75 ? 'var(--green)' : pol.low >= 60 ? '#C07800' : 'var(--accent)';
+      const polLabel  = pol.low >= 75 ? 'Bien polarisé' : pol.low >= 60 ? 'À surveiller' : 'Trop intense';
+      pEl.innerHTML = `
+        <div style="padding-top:12px;border-top:1px solid var(--border-sub);margin-top:12px">
+          <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);margin-bottom:10px">Polarisation entraînement · Course 28j</div>
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+            <div style="font-family:var(--f-d);font-size:28px;font-weight:700;color:${lowColor}">${pol.low}%</div>
+            <div style="font-size:11px;color:var(--text-3);line-height:1.4">Z1+Z2<br>basse intensité</div>
+            <div style="flex:1"></div>
+            <div style="font-family:var(--f-m);font-size:18px;font-weight:600;color:var(--accent)">${pol.high}%</div>
+            <div style="font-size:11px;color:var(--text-3);line-height:1.4">Z3+<br>haute</div>
+          </div>
+          <div style="height:8px;border-radius:4px;overflow:hidden;background:rgba(197,62,16,.15);margin-bottom:6px">
+            <div style="height:100%;width:${pol.low}%;background:${lowColor};border-radius:4px;transition:width .4s"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-3)">
+            <span><span style="color:${lowColor};font-weight:600">${polLabel}</span> · cible 80/20</span>
+            <span>Cible basse intensité : ≥ 80%</span>
+          </div>
+        </div>`;
+    }
+  }
+}
+
 function renderACWR() {
-  const card = $('acwr-card');
+  const row  = $('metrics-row');
   const body = $('acwr-body');
-  if (!activities.length) { card.style.display='none'; return; }
+  if (!activities.length) { if(row) row.style.display='none'; return; }
   const res = calcACWR();
-  if (!res) { card.style.display='none'; return; }
-  card.style.display = '';
+  if (!res) { if(row) row.style.display='none'; return; }
+  if (row) row.style.display = 'grid';
 
   const metrics = [
-    { key:'dist', label:'Distance', fmt: v => v.toFixed(1)+' km/j', acwrFmt: v => v !== null ? v.toFixed(2) : '—' },
-    { key:'dp',   label:'Dénivelé +', fmt: v => Math.round(v)+' m/j',  acwrFmt: v => v !== null ? v.toFixed(2) : '—' },
     { key:'dur',  label:'Durée',    fmt: v => v.toFixed(2)+' h/j',  acwrFmt: v => v !== null ? v.toFixed(2) : '—' },
   ];
 
@@ -1398,6 +1560,7 @@ function renderACWR() {
     <span style="color:var(--accent)">■ &gt;1.5 danger</span>
   </div>`;
   body.innerHTML = html;
+  renderMonotonyPolar();
 }
 
 function renderWeeklyChart() {
@@ -1749,6 +1912,53 @@ function renderDetail() {
     <div><span style="color:var(--text-3);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">Sport</span><br>
       <span style="font-family:var(--f-m);color:var(--text-1)">${si.label}</span></div>
   `;
+
+  // ── Découplement cardiaque (course longue uniquement) ────────────
+  const dcEl = document.getElementById('det-decoupling');
+  const isLongRun = a.sport === 'Running' && (a.duration/60 > 90 || a.distance/1000 > 15);
+  if (dcEl) {
+    if (isLongRun && prof.length >= 12 && validHR.length >= 12) {
+      const mid   = Math.floor(prof.length / 2);
+      const h1    = prof.slice(0, mid).map(p=>p.hr).filter(h=>h>30&&h<250);
+      const h2    = prof.slice(mid).map(p=>p.hr).filter(h=>h>30&&h<250);
+      if (h1.length >= 4 && h2.length >= 4) {
+        const avg1  = h1.reduce((s,v)=>s+v,0)/h1.length;
+        const avg2  = h2.reduce((s,v)=>s+v,0)/h2.length;
+        const dcPct = ((avg2 - avg1) / avg1) * 100;
+        const dcSign = dcPct >= 0 ? '+' : '';
+        let dcColor = 'var(--green)', dcLabel = 'Bonne efficacité aérobie';
+        let dcNote  = 'La FC reste stable — tu étais en zone aérobie confortable.';
+        if (dcPct > 5 && dcPct <= 8) { dcColor='#C07800'; dcLabel='Légère dérive cardiaque'; dcNote='Sortie légèrement au-delà du seuil aérobie — à surveiller.'; }
+        else if (dcPct > 8) { dcColor='var(--accent)'; dcLabel='Dérive cardiaque élevée'; dcNote='La FC a significativement augmenté → sortie trop intensive ou dépletion glycogène.'; }
+        // bar: 0=green, 5%=orange, 8%=red — show absolute drift on scale 0→15%
+        const barW = Math.min(100, Math.abs(dcPct)/15*100);
+        dcEl.innerHTML = `
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Découplement cardiaque</div>
+              <div style="font-size:11px;color:var(--text-3)">1ʳᵉ moitié vs 2ᵉ moitié · course longue</div>
+            </div>
+            <div style="display:flex;align-items:flex-end;gap:24px;margin-bottom:10px">
+              <div>
+                <div style="font-family:var(--f-d);font-size:38px;font-weight:700;line-height:1;color:${dcColor}">${dcSign}${dcPct.toFixed(1)}%</div>
+                <div style="margin-top:5px"><span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;color:${dcColor};background:${dcColor}22">${dcLabel}</span></div>
+              </div>
+              <div style="font-size:12px;color:var(--text-3);padding-bottom:4px;line-height:1.5">
+                FC 1ʳᵉ moitié : <strong style="color:var(--text-2)">${Math.round(avg1)} bpm</strong><br>
+                FC 2ᵉ moitié : <strong style="color:var(--text-2)">${Math.round(avg2)} bpm</strong>
+              </div>
+            </div>
+            <div style="height:6px;border-radius:3px;background:var(--bg);margin-bottom:8px;overflow:hidden">
+              <div style="height:100%;width:${barW}%;background:${dcColor};border-radius:3px;transition:width .4s"></div>
+            </div>
+            <div style="font-size:11px;color:var(--text-3);line-height:1.5">${dcNote}
+              <br><span style="opacity:.7">Seuil optimal : &lt;5% · Attention : 5–8% · Dérive : &gt;8%</span>
+            </div>
+          </div>`;
+        dcEl.style.display = '';
+      } else { dcEl.style.display = 'none'; }
+    } else { dcEl.style.display = 'none'; }
+  }
 }
 
 /* ════════════════════════════════════════════════════════════════
