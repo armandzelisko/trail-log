@@ -1097,10 +1097,10 @@ function renderBar(cid, data, opts={}) {
     const fill=d.value>0?color:'var(--border-sub)';
     s+=`<rect class="c-bar" x="${x}" y="${y}" width="${bw}" height="${bh}" rx="3"
          style="fill:${fill}" data-label="${d.label}" data-val="${d.value}" data-unit="${unit}"/>`;
-    if(d.value>0 && bh>18){
+    if(d.value>0 && bh>22){
       const valLbl=unit==='km'?`${d.value.toFixed(1)}`:unit==='m'?`${Math.round(d.value)}`:Math.round(d.value);
-      s+=`<text x="${x+bw/2}" y="${y+13}" text-anchor="middle"
-           style="fill:rgba(255,255,255,.88);font-family:var(--f-u);font-size:10px;font-weight:600;pointer-events:none">${valLbl}</text>`;
+      s+=`<text x="${x+bw/2}" y="${y+bh/2}" text-anchor="middle" dominant-baseline="middle"
+           style="fill:#fff;font-family:'Jost',sans-serif;font-size:11px;font-weight:700;pointer-events:none">${valLbl}</text>`;
     }
     if(n<=6||i%2===0)
       s+=`<text x="${x+bw/2}" y="${H-5}" text-anchor="middle"
@@ -1474,7 +1474,18 @@ function renderMonotonyPolar() {
             <div style="font-family:var(--f-m);font-size:18px;font-weight:600;color:var(--text-2)">${sVal}</div>
           </div>
         </div>
-        <div style="font-size:11px;color:var(--text-3);line-height:1.5">Charge hebdo totale : <strong style="color:var(--text-2)">${mon.total.toFixed(1)} h</strong></div>`;
+        <div style="font-size:11px;color:var(--text-3);line-height:1.5;margin-bottom:10px">Charge hebdo totale : <strong style="color:var(--text-2)">${mon.total.toFixed(1)} h</strong></div>
+        <div style="font-size:11px;color:var(--text-3);padding-top:9px;border-top:1px solid var(--border-sub);line-height:1.7">
+          <strong style="color:var(--text-2);font-size:10px;letter-spacing:.06em;text-transform:uppercase">Repères Monotonie</strong><br>
+          <span style="color:var(--green)">■</span> &lt;1.5 bonne variabilité &nbsp;
+          <span style="color:#C07800">■</span> 1.5–2.0 attention &nbsp;
+          <span style="color:var(--accent)">■</span> &gt;2.0 trop monotone<br>
+          <strong style="color:var(--text-2);font-size:10px;letter-spacing:.06em;text-transform:uppercase">Repères Strain</strong><br>
+          <span style="color:var(--blue)">■</span> &lt;3 léger &nbsp;
+          <span style="color:var(--green)">■</span> 3–6 modéré &nbsp;
+          <span style="color:#C07800">■</span> 6–9 élevé &nbsp;
+          <span style="color:var(--accent)">■</span> &gt;9 très élevé
+        </div>`;
     }
   }
 
