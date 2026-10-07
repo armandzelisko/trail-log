@@ -3,6 +3,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@600;700&family=Jost:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<script src="https://accounts.google.com/gsi/client" async></script>
 
 <style>
 /* ── Design tokens ──────────────────────────────────────────────── */
@@ -480,14 +481,8 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
         <div class="view-title">Importer</div>
       </div>
     </div>
-    <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
-      <button class="btn-primary" onclick="document.getElementById('sync-folder-input').click()" style="display:flex;align-items:center;gap:7px;background:var(--green)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2z"/><polyline points="8 13 12 17 16 13"/><line x1="12" y1="7" x2="12" y2="17"/></svg>
-        Sync depuis Google Drive
-      </button>
-      <input type="file" id="sync-folder-input" webkitdirectory style="display:none"
-        onchange="handleFiles(Array.from(this.files).filter(f=>f.name.endsWith('.tcx')))">
-      <div style="font-size:12px;color:var(--text-3);align-self:center">Sélectionne ton dossier Fichiers TCX → seules les nouvelles séances sont importées</div>
+    <div class="card" style="margin-bottom:16px;padding:16px 18px" id="gdrive-card">
+      <div id="gdrive-card-content"></div>
     </div>
     <div class="drop-zone" id="drop-zone">
       <input type="file" accept=".tcx" multiple id="file-input" onchange="handleFiles(this.files)">
@@ -567,6 +562,16 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
       <div class="card" id="profile-history-card" style="display:none">
         <div class="card-header"><div class="card-title">FCmax historique</div></div>
         <div id="profile-history"></div>
+      </div>
+
+      <div class="card" id="gdrive-setup-card">
+        <div class="card-header">
+          <div style="display:flex;align-items:center;gap:10px">
+            <svg width="18" height="16" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg"><path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0a7.88 7.88 0 003.3 3.3z" fill="#0066da"/><path d="M43.65 25L29.9 1.2A8.2 8.2 0 0026.6 4.5L.65 48.55a7.88 7.88 0 000 7.9h27.45z" fill="#00ac47"/><path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25a7.88 7.88 0 000-7.9H59.85l5.65 10.8z" fill="#ea4335"/><path d="M43.65 25L57.4 1.2A8.2 8.2 0 0053.4.4H33.9a8.2 8.2 0 00-4 .8z" fill="#00832d"/><path d="M59.85 55.45H27.45L13.7 79.25c1.35.8 2.9 1.15 4.5 1.15h50c1.6 0 3.15-.45 4.5-1.15z" fill="#2684fc"/><path d="M73.4 26.45l-13.5-23.4A8.2 8.2 0 0056.6.4L43.65 25l16.2 28.05H87.1a7.88 7.88 0 000-7.9z" fill="#ffba00"/></svg>
+            <div class="card-title">Google Drive</div>
+          </div>
+        </div>
+        <div id="gdrive-setup-content"></div>
       </div>
 
     </div>
@@ -650,6 +655,7 @@ const TCX_NS = 'http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2';
 const ACT_NS = 'http://www.garmin.com/xmlschemas/ActivityExtension/v2';
 const STORE         = 'traillog_v2';
 const PROFILE_STORE = 'traillog_profile';
+const GDRIVE_STORE  = 'traillog_gdrive';
 
 const SPORT = {
   Running: { label: 'Course / Trail', abbr: 'RUN', css: 'var(--s-run)',  pill: '#C53E10' },
@@ -681,6 +687,233 @@ let detChartColor = 'var(--accent)';
 ════════════════════════════════════════════════════════════════ */
 /* ── Athlete profile ──────────────────────────────────────────────── */
 let athleteProfile = { fcmax: 0, fcrepos: 0, poids: 0, nom: '' };
+
+/* ── Google Drive state ──────────────────────────────────────────── */
+let gdriveState = { clientId: '', folderId: '', folderName: '', importedIds: [] };
+let _gdriveToken = null;
+let _gdriveTokenExp = 0;
+
+function loadGDrive() {
+  try {
+    const raw = localStorage.getItem(GDRIVE_STORE);
+    if (raw) gdriveState = { ...gdriveState, ...JSON.parse(raw) };
+  } catch(e) {}
+}
+function saveGDrive() {
+  try { localStorage.setItem(GDRIVE_STORE, JSON.stringify(gdriveState)); }
+  catch(e) {}
+}
+
+function gdriveAuth() {
+  return new Promise((resolve, reject) => {
+    if (_gdriveToken && Date.now() < _gdriveTokenExp - 60000) { resolve(_gdriveToken); return; }
+    if (!gdriveState.clientId) { reject(new Error('Client ID non configuré — va dans Profil → Google Drive')); return; }
+    if (!window.google?.accounts?.oauth2) { reject(new Error('Bibliothèque Google non chargée, réessaie dans quelques secondes')); return; }
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: gdriveState.clientId,
+      scope: 'https://www.googleapis.com/auth/drive.readonly',
+      callback: resp => {
+        if (resp.error) { reject(new Error(resp.error_description || resp.error)); return; }
+        _gdriveToken = resp.access_token;
+        _gdriveTokenExp = Date.now() + (resp.expires_in || 3600) * 1000;
+        resolve(_gdriveToken);
+      }
+    });
+    client.requestAccessToken();
+  });
+}
+
+async function gdriveSyncNow() {
+  const statusEl = document.getElementById('gdrive-status');
+  const btnEl    = document.getElementById('gdrive-sync-btn');
+  const setStatus = (msg, color) => { if (statusEl) { statusEl.textContent = msg; statusEl.style.color = color || 'var(--text-3)'; } };
+  if (btnEl) btnEl.disabled = true;
+  setStatus('Connexion à Google Drive…');
+  try {
+    const token = await gdriveAuth();
+    if (!gdriveState.folderId) throw new Error('Aucun dossier sélectionné');
+    const q = encodeURIComponent(`'${gdriveState.folderId}' in parents and name contains '.tcx' and trashed=false`);
+    const resp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=200`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!resp.ok) { const t = await resp.text(); throw new Error(`API Drive ${resp.status}: ${t.slice(0,120)}`); }
+    const data  = await resp.json();
+    const files = data.files || [];
+    const newFiles = files.filter(f => !gdriveState.importedIds.includes(f.id));
+    if (!newFiles.length) {
+      setStatus(`✓ À jour — ${files.length} fichier(s) dans le dossier, rien de nouveau`, 'var(--green)');
+      if (btnEl) btnEl.disabled = false;
+      return;
+    }
+    setStatus(`Téléchargement de ${newFiles.length} nouveau(x) fichier(s)…`);
+    let added = 0, dupes = 0; const errors = [];
+    for (const file of newFiles) {
+      try {
+        const dlResp = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!dlResp.ok) throw new Error(`HTTP ${dlResp.status}`);
+        const text   = await dlResp.text();
+        const parsed = parseTCX(text);
+        for (const act of parsed) {
+          if (activities.some(a => a.id === act.id)) dupes++;
+          else { activities.push(act); added++; }
+        }
+        gdriveState.importedIds.push(file.id);
+      } catch(e) { errors.push(`${file.name}: ${e.message}`); }
+    }
+    activities.sort((a,b) => a.date - b.date);
+    saveDB(); saveGDrive(); updateNavMeta();
+    let msg = `✓ ${added} activité(s) importée(s)`;
+    if (dupes)  msg += `, ${dupes} doublon(s) ignoré(s)`;
+    if (errors.length) msg += ` · Erreurs: ${errors.join(' · ')}`;
+    setStatus(msg, added > 0 ? 'var(--green)' : 'var(--text-3)');
+    if (added > 0) setTimeout(() => go('dashboard'), 1500);
+  } catch(e) {
+    setStatus(`✗ ${e.message}`, 'var(--accent)');
+  } finally {
+    if (btnEl) btnEl.disabled = false;
+  }
+}
+
+async function gdrivePickFolder() {
+  const btnEl = document.getElementById('gdrive-pick-btn');
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Connexion…'; }
+  try {
+    const token = await gdriveAuth();
+    // List top-level Drive folders (My Drive root)
+    const resp = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent("mimeType='application/vnd.google-apps.folder' and 'root' in parents and trashed=false")}&fields=files(id,name)&orderBy=name&pageSize=50`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!resp.ok) throw new Error(`API Drive ${resp.status}`);
+    const data = await resp.json();
+    const folders = data.files || [];
+    renderFolderPicker(folders);
+  } catch(e) {
+    alert('Erreur : ' + e.message);
+    if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Choisir le dossier'; }
+  }
+}
+
+function renderFolderPicker(folders) {
+  const card = document.getElementById('gdrive-card-content');
+  if (!card) return;
+  const rows = folders.map(f =>
+    `<div onclick="selectGDriveFolder('${f.id}','${f.name.replace(/'/g,"\\'")}')"
+      style="padding:10px 14px;cursor:pointer;border-radius:7px;display:flex;align-items:center;gap:10px;transition:background .12s"
+      onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      <span style="font-size:13px;color:var(--text-1)">${f.name}</span>
+    </div>`
+  ).join('');
+  card.innerHTML = `
+    <div style="font-size:13px;font-weight:600;color:var(--text-1);margin-bottom:10px">Choisis ton dossier TCX :</div>
+    <div style="max-height:240px;overflow-y:auto;border:1.5px solid var(--border);border-radius:9px;background:var(--surface-raised)">
+      ${rows || '<div style="padding:16px;color:var(--text-3);font-size:13px">Aucun dossier trouvé à la racine de Drive</div>'}
+    </div>
+    <div style="margin-top:10px;font-size:12px;color:var(--text-3)">
+      Tu ne vois pas ton dossier ? Il est peut-être dans un sous-dossier.
+      <a href="#" onclick="gdriveEnterFolderUrl();return false" style="color:var(--accent)">Coller l'URL du dossier</a>
+    </div>`;
+}
+
+async function selectGDriveFolder(id, name) {
+  gdriveState.folderId   = id;
+  gdriveState.folderName = name;
+  gdriveState.importedIds = []; // reset import history for new folder
+  saveGDrive();
+  renderGDriveCard();
+}
+
+function gdriveEnterFolderUrl() {
+  const url = prompt('Colle le lien de ton dossier Google Drive :');
+  if (!url) return;
+  const match = url.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+  if (!match) { alert('Lien invalide — doit ressembler à drive.google.com/drive/folders/…'); return; }
+  gdriveState.folderId   = match[1];
+  gdriveState.folderName = 'Dossier TCX';
+  gdriveState.importedIds = [];
+  saveGDrive();
+  renderGDriveCard();
+}
+
+function saveGDriveClientId() {
+  const val = document.getElementById('gdrive-clientid-input')?.value?.trim();
+  if (!val) { alert('Colle ton Client ID Google'); return; }
+  gdriveState.clientId = val;
+  _gdriveToken = null; _gdriveTokenExp = 0; // reset token on ID change
+  saveGDrive();
+  renderGDriveCard();
+  renderGDriveSetup();
+}
+
+function renderGDriveSetup() {
+  const el = document.getElementById('gdrive-setup-content');
+  if (!el) return;
+  el.innerHTML = `
+    <p style="font-size:13px;color:var(--text-2);margin:0 0 14px;line-height:1.75">
+      Trail AZ se connecte à ton dossier Google Drive via l'API officielle.
+      Il te faut un <strong>Client ID OAuth 2.0</strong> gratuit (5 min) :<br>
+      1. Ouvre <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--accent)">Google Cloud Console → Credentials</a><br>
+      2. Crée un projet (ou en choisis un existant)<br>
+      3. Active l'<strong>API Google Drive</strong><br>
+      4. <em>+ Créer des identifiants → ID client OAuth 2.0 → Application Web</em><br>
+      5. Dans <em>Origines JavaScript autorisées</em>, ajoute :<br>
+      &nbsp;&nbsp;&nbsp;<code style="background:var(--bg);padding:1px 6px;border-radius:3px;font-size:12px">https://armandzelisko.github.io</code><br>
+      6. Copie le Client ID et colle-le ci-dessous
+    </p>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <input id="gdrive-clientid-input" type="text"
+        placeholder="123456789-abc…apps.googleusercontent.com"
+        value="${gdriveState.clientId}"
+        style="flex:1;min-width:260px;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--r-btn);font-size:13px;font-family:var(--f-m);background:var(--surface-raised);color:var(--text-1);outline:none">
+      <button class="btn-primary" onclick="saveGDriveClientId()">Enregistrer</button>
+    </div>
+    ${gdriveState.clientId
+      ? `<div style="margin-top:10px;font-size:12px;color:var(--green)">✓ Client ID enregistré — va dans <a href="#" onclick="go('import');return false" style="color:var(--accent)">Importer</a> pour choisir ton dossier et synchroniser</div>`
+      : ''}`;
+}
+
+const GDRIVE_LOGO = `<svg width="20" height="18" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg"><path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0a7.88 7.88 0 003.3 3.3z" fill="#0066da"/><path d="M43.65 25L29.9 1.2A8.2 8.2 0 0026.6 4.5L.65 48.55a7.88 7.88 0 000 7.9h27.45z" fill="#00ac47"/><path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25a7.88 7.88 0 000-7.9H59.85l5.65 10.8z" fill="#ea4335"/><path d="M43.65 25L57.4 1.2A8.2 8.2 0 0053.4.4H33.9a8.2 8.2 0 00-4 .8z" fill="#00832d"/><path d="M59.85 55.45H27.45L13.7 79.25c1.35.8 2.9 1.15 4.5 1.15h50c1.6 0 3.15-.45 4.5-1.15z" fill="#2684fc"/><path d="M73.4 26.45l-13.5-23.4A8.2 8.2 0 0056.6.4L43.65 25l16.2 28.05H87.1a7.88 7.88 0 000-7.9z" fill="#ffba00"/></svg>`;
+
+function renderGDriveCard() {
+  const card = document.getElementById('gdrive-card-content');
+  if (!card) return;
+  if (!gdriveState.clientId) {
+    card.innerHTML = `<div style="display:flex;align-items:center;gap:13px">
+      ${GDRIVE_LOGO}
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600;color:var(--text-1)">Google Drive — non configuré</div>
+        <div style="font-size:12px;color:var(--text-3);margin-top:3px">Configure ton Client ID dans
+          <a href="#" onclick="go('profile');return false" style="color:var(--accent)">Profil → Google Drive</a>
+        </div>
+      </div>
+    </div>`;
+    return;
+  }
+  if (!gdriveState.folderId) {
+    card.innerHTML = `<div style="display:flex;align-items:center;gap:13px;flex-wrap:wrap">
+      ${GDRIVE_LOGO}
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600;color:var(--text-1)">Google Drive — aucun dossier sélectionné</div>
+        <div style="font-size:12px;color:var(--text-3);margin-top:3px">Connecte-toi et choisis le dossier contenant tes fichiers TCX</div>
+      </div>
+      <button id="gdrive-pick-btn" class="btn-primary" onclick="gdrivePickFolder()" style="background:var(--blue);white-space:nowrap">Choisir le dossier</button>
+    </div>`;
+    return;
+  }
+  card.innerHTML = `<div style="display:flex;align-items:center;gap:13px;flex-wrap:wrap">
+    ${GDRIVE_LOGO}
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13px;font-weight:600;color:var(--text-1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📁 ${gdriveState.folderName}</div>
+      <div style="font-size:12px;color:var(--text-3);margin-top:3px" id="gdrive-status">Prêt à synchroniser · ${gdriveState.importedIds.length} fichier(s) déjà importé(s)</div>
+    </div>
+    <button id="gdrive-sync-btn" class="btn-primary" onclick="gdriveSyncNow()" style="white-space:nowrap">↻ Synchroniser</button>
+    <button onclick="gdriveState.folderId='';gdriveState.folderName='';saveGDrive();renderGDriveCard()"
+      style="padding:7px 12px;border:1.5px solid var(--border);border-radius:var(--r-btn);background:var(--surface);color:var(--text-2);font-size:12px;cursor:pointer">Changer</button>
+  </div>`;
+}
 
 function loadProfile() {
   try {
@@ -967,7 +1200,8 @@ function go(view) {
   if      (view==='dashboard')  renderDashboard();
   else if (view==='activities') renderActivities();
   else if (view==='detail')     renderDetail();
-  else if (view==='profile')    renderProfile();
+  else if (view==='import')     renderGDriveCard();
+  else if (view==='profile')    { renderProfile(); renderGDriveSetup(); }
   updateNavMeta();
 }
 
@@ -2084,6 +2318,7 @@ function saveProfileForm() {
    INIT
 ════════════════════════════════════════════════════════════════ */
 loadProfile();
+loadGDrive();
 activities = loadDB();
 renderDashboard();
 </script>
