@@ -1965,6 +1965,8 @@ function renderDetail() {
      <span style="color:var(--text-3)">${durFmt(a.duration)}</span>`;
   document.getElementById('detail-title').textContent = a.name || dateFmt(a.date);
 
+  let gapSpeed = null; // calculé après prof, mis à jour via DOM patch
+
   // KPI
   const kpis = [
     { lbl:'Distance',    val: kmFmt(a.distance), unit:'km',        col:'var(--accent)' },
