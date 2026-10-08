@@ -484,6 +484,13 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     <div class="card" style="margin-bottom:16px;padding:16px 18px" id="gdrive-card">
       <div id="gdrive-card-content"></div>
     </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-2);user-select:none">
+        <input type="checkbox" id="force-update-chk" onchange="forceUpdate=this.checked"
+          style="width:15px;height:15px;accent-color:var(--accent);cursor:pointer">
+        <span>Mettre à jour les séances existantes <span style="color:var(--text-3);font-size:11px">(réimporter et écraser)</span></span>
+      </label>
+    </div>
     <div class="drop-zone" id="drop-zone">
       <input type="file" accept=".tcx" multiple id="file-input" onchange="handleFiles(this.files)">
       <span class="drop-icon">🏔</span>
@@ -635,9 +642,6 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     <!-- Découplement cardiaque -->
     <div id="det-decoupling" style="display:none;margin-bottom:13px"></div>
 
-    <!-- Prédiction Riegel -->
-    <div id="det-riegel" style="display:none;margin-bottom:13px"></div>
-
     <!-- Intervalles — pleine largeur -->
     <div class="card" id="det-laps-card" style="display:none;margin-bottom:0">
       <div class="card-header"><div class="card-title">Intervalles</div></div>
@@ -686,6 +690,7 @@ let sortKey       = 'date';
 let sortDir       = 'desc';
 let currentActId  = null;
 let detailFrom    = 'dashboard';
+let forceUpdate   = false;
 let detChartMode  = 'km';   // 'km' | 'dp'
 let detChartColor = 'var(--accent)';
 
@@ -2333,15 +2338,24 @@ function renderDetail() {
     }
 
     // Profil terrain (montée / plat / descente) depuis laps
+    // On utilise dPlus et dMinus séparément (pas le net) pour détecter les deux dans un même km
     const terrainLaps = (a.laps || []).filter(l => l.distance > 100 && l.duration > 10);
     if (terrainLaps.length > 1) {
       let mDist=0,mTime=0, dDist=0,dTime=0, pDist=0,pTime=0;
       terrainLaps.forEach(l => {
-        const net = (l.dPlus||0) - (l.dMinus||0);
-        const grade = (net / l.distance) * 100;
-        if (grade > 3)      { mDist+=l.distance; mTime+=l.duration; }
-        else if (grade < -3){ dDist+=l.distance; dTime+=l.duration; }
-        else                 { pDist+=l.distance; pTime+=l.duration; }
+        const upGrade   = (l.dPlus  || 0) / l.distance * 100;
+        const downGrade = (l.dMinus || 0) / l.distance * 100;
+        const isUp   = upGrade   > 3;
+        const isDown = downGrade > 3;
+        if (isUp && isDown) {
+          // Lap mixte : répartir selon dPlus/dMinus
+          const tot = (l.dPlus||0) + (l.dMinus||0) || 1;
+          const mf = (l.dPlus||0)/tot, df = (l.dMinus||0)/tot;
+          mDist+=l.distance*mf; mTime+=l.duration*mf;
+          dDist+=l.distance*df; dTime+=l.duration*df;
+        } else if (isUp)   { mDist+=l.distance; mTime+=l.duration; }
+        else if (isDown)   { dDist+=l.distance; dTime+=l.duration; }
+        else               { pDist+=l.distance; pTime+=l.duration; }
       });
       const totalDist = mDist+dDist+pDist || 1;
       const paceStr = (t, d) => d > 100 && t > 0 ? paceFmt(Math.round(t/(d/1000))) : '—';
@@ -2376,7 +2390,7 @@ function renderDetail() {
             <div style="font-size:12px;color:var(--text-2);margin-top:2px">${paceStr(dTime,dDist)}<span style="font-size:10px;color:var(--text-3)">/km</span></div>
           </div>
         </div>
-        <div style="font-size:10px;color:var(--text-3);margin-top:8px">Montée > 3% · Descente < −3% · Allure moy. par type de terrain</div>`;
+        <div style="font-size:10px;color:var(--text-3);margin-top:8px">D+/km > 3% = montée · D−/km > 3% = descente · Allure moy. par type de terrain</div>`;
       eeHtml += `<div class="card" style="height:100%">
         <div class="card-header"><div class="card-title">Profil terrain</div></div>
         ${terrainHtml}
@@ -2391,50 +2405,6 @@ function renderDetail() {
     }
   }
 
-  // ── Prédiction Riegel (ajustée au dénivelé via GAP) ──────────────
-  const riegelEl = document.getElementById('det-riegel');
-  if (riegelEl && isRunning && a.distance > 500 && a.duration > 0) {
-    const gapSpeedNum = gapSpeed ? parseFloat(gapSpeed) : null;
-    // Flat-equivalent time for D1 (using GAP speed if available)
-    const D1 = a.distance;
-    const T1_base = gapSpeedNum
-      ? (D1 / 1000) / gapSpeedNum * 3600
-      : a.duration;
-    const isAdjusted = !!gapSpeedNum;
-    const targets = [
-      { name:'5 km',      dist:5000 },
-      { name:'10 km',     dist:10000 },
-      { name:'Semi',      dist:21097 },
-      { name:'Marathon',  dist:42195 },
-    ];
-    const rCards = targets.map(t => {
-      const T2 = T1_base * Math.pow(t.dist / D1, 1.06);
-      const pace2 = Math.round(T2 / (t.dist / 1000));
-      const isRef = Math.abs(t.dist - D1) < D1 * 0.05; // within 5% of current distance
-      return `<div style="text-align:center;padding:10px 6px;border-radius:8px;background:${isRef?'rgba(220,80,50,.07)':'var(--bg)'};border:1px solid ${isRef?'var(--accent)':'var(--border)'}">
-        <div style="font-size:10px;color:var(--text-3);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">${t.name}</div>
-        <div style="font-family:var(--f-d);font-size:20px;font-weight:700;color:var(--text-1);line-height:1">${durFmt(Math.round(T2))}</div>
-        <div style="font-size:11px;color:var(--text-3);margin-top:3px">${paceFmt(pace2)}/km</div>
-      </div>`;
-    }).join('');
-    const refNote = a.isRace
-      ? `Basé sur ta course du ${dateFmt(a.date)}`
-      : `Basé sur la séance du ${dateFmt(a.date)}`;
-    const gapNote = isAdjusted
-      ? ` · Dénivelé pris en compte via GAP (${gapSpeed} km/h → plat)`
-      : ' · Sans ajustement dénivelé (GAP non calculé)';
-    riegelEl.innerHTML = `<div class="card">
-      <div class="card-header">
-        <div class="card-title">Prédiction Riegel${a.isRace?' 🏁':''}</div>
-        <div style="font-size:11px;color:var(--text-3)">T₂ = T₁ × (D₂/D₁)^1.06</div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px">${rCards}</div>
-      <div style="font-size:10px;color:var(--text-3);line-height:1.5">${refNote}${gapNote}</div>
-    </div>`;
-    riegelEl.style.display = '';
-  } else if (riegelEl) {
-    riegelEl.style.display = 'none';
-  }
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -2447,14 +2417,17 @@ async function handleFiles(files) {
     try{
       const parsed=parseTCX(await file.text());
       for(const act of parsed){
-        if(activities.some(a=>a.id===act.id)) dupes++;
-        else{activities.push(act);added++;}
+        const idx = activities.findIndex(a=>a.id===act.id);
+        if(idx !== -1) {
+          if(forceUpdate){ activities[idx]={...activities[idx],...act,isRace:activities[idx].isRace,name:activities[idx].name}; added++; }
+          else dupes++;
+        } else { activities.push(act); added++; }
       }
     }catch(e){errors.push(`${file.name} : ${e.message}`);}
   }
   activities.sort((a,b)=>a.date-b.date); saveDB(); updateNavMeta();
   let msg='';
-  if(added)  msg+=`✓ ${added} activité${added>1?'s':''} importée${added>1?'s':''}. `;
+  if(added)  msg+=`✓ ${added} activité${added>1?'s':''} ${forceUpdate?'mise'+( added>1?'s':'')+' à jour':'importée'+(added>1?'s':'')}. `;
   if(dupes)  msg+=`${dupes} doublon${dupes>1?'s':''} ignoré${dupes>1?'s':''}. `;
   if(errors.length) msg+=errors.join(' · ');
   res.className='import-result '+(errors.length&&!added?'err':'ok');
