@@ -1965,38 +1965,6 @@ function renderDetail() {
      <span style="color:var(--text-3)">${durFmt(a.duration)}</span>`;
   document.getElementById('detail-title').textContent = a.name || dateFmt(a.date);
 
-  // GAP (Grade Adjusted Pace/Speed) — Strava-style formula
-  // factor = 1 + 0.033×g + 0.000455×g²  (g = grade in %)
-  function gapFactor(gradePct) {
-    const g = Math.max(-40, Math.min(40, gradePct)); // cap extremes
-    return 1 + 0.033 * g + 0.000455 * g * g;
-  }
-  // Compute GAP from profile trackpoints
-  let gapSpeed = null;
-  if (prof.length >= 4 && a.distance > 0) {
-    let totalAdjDist = 0, totalDist = 0;
-    for (let i = 1; i < prof.length; i++) {
-      const dx = prof[i].d - prof[i-1].d; // distance in meters between points
-      if (dx <= 0) continue;
-      const dz = (prof[i].alt || 0) - (prof[i-1].alt || 0);
-      const grade = (dz / dx) * 100;
-      totalAdjDist += dx * gapFactor(grade);
-      totalDist += dx;
-    }
-    if (totalDist > 0 && a.duration > 0) {
-      const avgFactor = totalAdjDist / totalDist;
-      const realSpeed = (a.distance / 1000) / (a.duration / 3600); // km/h
-      gapSpeed = (realSpeed * avgFactor).toFixed(1);
-    }
-  }
-  // Fallback: estimate from total D+/D- if no altitude in profile
-  if (!gapSpeed && a.distance > 0 && a.duration > 0 && (a.dPlus || a.dMinus)) {
-    const net = ((a.dPlus || 0) - (a.dMinus || 0));
-    const grade = (net / a.distance) * 100;
-    const realSpeed = (a.distance / 1000) / (a.duration / 3600);
-    gapSpeed = (realSpeed * gapFactor(grade)).toFixed(1);
-  }
-
   // KPI
   const kpis = [
     { lbl:'Distance',    val: kmFmt(a.distance), unit:'km',        col:'var(--accent)' },
@@ -2021,6 +1989,41 @@ function renderDetail() {
 
   // Combined HR chart — render in current mode (default: km)
   const prof = a.profile || [];
+
+  // GAP (Grade Adjusted Speed) — Strava-style formula: factor = 1 + 0.033g + 0.000455g²
+  function gapFactor(gradePct) {
+    const g = Math.max(-40, Math.min(40, gradePct));
+    return 1 + 0.033 * g + 0.000455 * g * g;
+  }
+  let gapSpeed = null;
+  if (prof.length >= 4 && a.distance > 0 && a.duration > 0) {
+    let totalAdjDist = 0, totalDist = 0;
+    for (let i = 1; i < prof.length; i++) {
+      const dx = (prof[i].d || 0) - (prof[i-1].d || 0);
+      if (dx <= 0) continue;
+      const dz = (prof[i].alt || 0) - (prof[i-1].alt || 0);
+      totalAdjDist += dx * gapFactor((dz / dx) * 100);
+      totalDist += dx;
+    }
+    if (totalDist > 0) {
+      const realSpeed = (a.distance / 1000) / (a.duration / 3600);
+      gapSpeed = (realSpeed * (totalAdjDist / totalDist)).toFixed(1);
+    }
+  }
+  // Fallback depuis D+/D- total si pas d'altitude dans le profil
+  if (!gapSpeed && a.distance > 0 && a.duration > 0 && (a.dPlus || a.dMinus)) {
+    const net = (a.dPlus || 0) - (a.dMinus || 0);
+    const realSpeed = (a.distance / 1000) / (a.duration / 3600);
+    gapSpeed = (realSpeed * gapFactor((net / a.distance) * 100)).toFixed(1);
+  }
+  // Patch KPI vit. ajust. (défini avant prof, on met à jour le DOM directement)
+  document.querySelectorAll('.det-kpi').forEach(el => {
+    if (el.querySelector('.det-kpi-lbl')?.textContent === 'Vit. ajust. pente') {
+      el.querySelector('.det-kpi-val').textContent = gapSpeed || '—';
+      el.querySelector('.det-kpi-unit').textContent = gapSpeed ? 'km/h' : '';
+    }
+  });
+
   detChartColor = si.css;  // expose color for toggle re-render
   switchHRChart(detChartMode, true);   // true = initial render, don't re-look up activity
 
