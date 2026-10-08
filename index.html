@@ -1975,7 +1975,7 @@ function renderDetail() {
     { lbl:'FC max',      val: a.maxHR || '—', unit: a.maxHR ? 'bpm' : '', col:'var(--blue)' },
     { lbl:'Calories',    val: a.calories ? numFmt(a.calories) : '—', unit: a.calories ? 'kcal' : '', col:'var(--purple)' },
     { lbl:'D− / D+',    val: a.dPlus ? Math.round(a.dMinus/a.dPlus*100)+'%' : '—', unit:'ratio', col:'var(--text-3)' },
-    { lbl:'V. ascens.',  val: (a.dPlus && a.duration) ? numFmt(Math.round(a.dPlus * 3600 / a.duration)) : '—', unit: (a.dPlus && a.duration) ? 'm/h' : '', col:'var(--teal)' },
+    { lbl:'V. ascens. moy.', val: (a.dPlus && a.duration) ? numFmt(Math.round(a.dPlus * 3600 / a.duration)) : '—', unit: (a.dPlus && a.duration) ? 'm/h' : '', col:'var(--teal)' },
   ];
   document.getElementById('detail-kpi').innerHTML = kpis.map(k =>
     `<div class="det-kpi">
@@ -2086,6 +2086,7 @@ function renderDetail() {
       const cumStr    = fmtDur(renderCum);
       const distStr   = l.distance >= 100 ? `${(l.distance/1000).toFixed(2)} km` : `${Math.round(l.distance)} m`;
       const paceStr   = l.pace > 0 && !isRest ? paceFmt(l.pace) : '—';
+      const vascStr   = (l.dPlus > 0 && l.duration > 0) ? `${Math.round(l.dPlus * 3600 / l.duration)} m/h` : '—';
       const hrStr     = l.avgHR   > 0 ? `${l.avgHR} bpm` : '—';
       const maxHRStr  = l.maxHR   > 0 ? `${l.maxHR}` : '—';
       const dpStr     = l.dPlus   > 0 ? `+${Math.round(l.dPlus)} m`  : '0 m';
@@ -2108,6 +2109,7 @@ function renderDetail() {
         <td style="font-family:var(--f-m);color:var(--text-3)">${cumStr}</td>
         <td>${distStr}</td>
         <td>${paceStr}</td>
+        <td style="color:var(--teal);font-family:var(--f-m);font-size:12px">${vascStr}</td>
         <td style="color:var(--blue)">${hrStr}</td>
         <td style="color:var(--blue)">${maxHRStr}</td>
         <td style="color:var(--green)">${dpStr}</td>
@@ -2123,7 +2125,7 @@ function renderDetail() {
     const wkgHeader = poids > 0 ? `<th style="color:var(--purple);opacity:.8">W/kg</th>` : '';
     lapsDiv.innerHTML = summaryHtml + `<div style="overflow-x:auto"><table class="laps-table">
       <thead><tr>
-        <th>#</th><th>Type</th><th>Durée</th><th style="color:var(--text-3)">Cumulé</th><th>Distance</th><th>Allure</th><th style="color:var(--blue)">FC moy.</th><th style="color:var(--blue)">FC max</th><th style="color:var(--green)">D+</th><th style="color:var(--text-2)">D−</th>${powerHeaders}${wkgHeader}<th style="color:var(--text-3)">Tps dépl.</th>
+        <th>#</th><th>Type</th><th>Durée</th><th style="color:var(--text-3)">Cumulé</th><th>Distance</th><th>Allure</th><th style="color:var(--teal)">V. ascens.</th><th style="color:var(--blue)">FC moy.</th><th style="color:var(--blue)">FC max</th><th style="color:var(--green)">D+</th><th style="color:var(--text-2)">D−</th>${powerHeaders}${wkgHeader}<th style="color:var(--text-3)">Tps dépl.</th>
       </tr></thead><tbody>${rows}</tbody>
     </table></div>`;
   } else {
