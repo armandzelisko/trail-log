@@ -1965,6 +1965,38 @@ function renderDetail() {
      <span style="color:var(--text-3)">${durFmt(a.duration)}</span>`;
   document.getElementById('detail-title').textContent = a.name || dateFmt(a.date);
 
+  // GAP (Grade Adjusted Pace/Speed) — Strava-style formula
+  // factor = 1 + 0.033×g + 0.000455×g²  (g = grade in %)
+  function gapFactor(gradePct) {
+    const g = Math.max(-40, Math.min(40, gradePct)); // cap extremes
+    return 1 + 0.033 * g + 0.000455 * g * g;
+  }
+  // Compute GAP from profile trackpoints
+  let gapSpeed = null;
+  if (prof.length >= 4 && a.distance > 0) {
+    let totalAdjDist = 0, totalDist = 0;
+    for (let i = 1; i < prof.length; i++) {
+      const dx = prof[i].d - prof[i-1].d; // distance in meters between points
+      if (dx <= 0) continue;
+      const dz = (prof[i].alt || 0) - (prof[i-1].alt || 0);
+      const grade = (dz / dx) * 100;
+      totalAdjDist += dx * gapFactor(grade);
+      totalDist += dx;
+    }
+    if (totalDist > 0 && a.duration > 0) {
+      const avgFactor = totalAdjDist / totalDist;
+      const realSpeed = (a.distance / 1000) / (a.duration / 3600); // km/h
+      gapSpeed = (realSpeed * avgFactor).toFixed(1);
+    }
+  }
+  // Fallback: estimate from total D+/D- if no altitude in profile
+  if (!gapSpeed && a.distance > 0 && a.duration > 0 && (a.dPlus || a.dMinus)) {
+    const net = ((a.dPlus || 0) - (a.dMinus || 0));
+    const grade = (net / a.distance) * 100;
+    const realSpeed = (a.distance / 1000) / (a.duration / 3600);
+    gapSpeed = (realSpeed * gapFactor(grade)).toFixed(1);
+  }
+
   // KPI
   const kpis = [
     { lbl:'Distance',    val: kmFmt(a.distance), unit:'km',        col:'var(--accent)' },
@@ -1976,6 +2008,8 @@ function renderDetail() {
     { lbl:'Calories',    val: a.calories ? numFmt(a.calories) : '—', unit: a.calories ? 'kcal' : '', col:'var(--purple)' },
     { lbl:'D− / D+',    val: a.dPlus ? Math.round(a.dMinus/a.dPlus*100)+'%' : '—', unit:'ratio', col:'var(--text-3)' },
     { lbl:'V. ascens. moy.', val: (a.dPlus && a.duration) ? numFmt(Math.round(a.dPlus * 3600 / a.duration)) : '—', unit: (a.dPlus && a.duration) ? 'm/h' : '', col:'var(--teal)' },
+    { lbl:'Vit. ajust. pente', val: gapSpeed || '—', unit: gapSpeed ? 'km/h' : '', col:'var(--green)' },
+    { lbl:'Puissance moy.', val: a.avgWatts ? numFmt(a.avgWatts) : '—', unit: a.avgWatts ? 'W' : '', col:'var(--purple)' },
   ];
   document.getElementById('detail-kpi').innerHTML = kpis.map(k =>
     `<div class="det-kpi">
@@ -2087,6 +2121,13 @@ function renderDetail() {
       const distStr   = l.distance >= 100 ? `${(l.distance/1000).toFixed(2)} km` : `${Math.round(l.distance)} m`;
       const paceStr   = l.pace > 0 && !isRest ? paceFmt(l.pace) : '—';
       const vascStr   = (l.dPlus > 0 && l.duration > 0) ? `${Math.round(l.dPlus * 3600 / l.duration)} m/h` : '—';
+      let lapGap = '—';
+      if (l.distance > 0 && l.duration > 0) {
+        const lapNet = ((l.dPlus || 0) - (l.dMinus || 0));
+        const lapGrade = (lapNet / l.distance) * 100;
+        const lapSpeed = (l.distance / 1000) / (l.duration / 3600);
+        lapGap = (lapSpeed * gapFactor(lapGrade)).toFixed(1) + ' km/h';
+      }
       const hrStr     = l.avgHR   > 0 ? `${l.avgHR} bpm` : '—';
       const maxHRStr  = l.maxHR   > 0 ? `${l.maxHR}` : '—';
       const dpStr     = l.dPlus   > 0 ? `+${Math.round(l.dPlus)} m`  : '0 m';
@@ -2110,6 +2151,7 @@ function renderDetail() {
         <td>${distStr}</td>
         <td>${paceStr}</td>
         <td style="color:var(--teal);font-family:var(--f-m);font-size:12px">${vascStr}</td>
+        <td style="color:var(--green);font-family:var(--f-m);font-size:12px">${lapGap}</td>
         <td style="color:var(--blue)">${hrStr}</td>
         <td style="color:var(--blue)">${maxHRStr}</td>
         <td style="color:var(--green)">${dpStr}</td>
@@ -2125,7 +2167,7 @@ function renderDetail() {
     const wkgHeader = poids > 0 ? `<th style="color:var(--purple);opacity:.8">W/kg</th>` : '';
     lapsDiv.innerHTML = summaryHtml + `<div style="overflow-x:auto"><table class="laps-table">
       <thead><tr>
-        <th>#</th><th>Type</th><th>Durée</th><th style="color:var(--text-3)">Cumulé</th><th>Distance</th><th>Allure</th><th style="color:var(--teal)">V. ascens.</th><th style="color:var(--blue)">FC moy.</th><th style="color:var(--blue)">FC max</th><th style="color:var(--green)">D+</th><th style="color:var(--text-2)">D−</th>${powerHeaders}${wkgHeader}<th style="color:var(--text-3)">Tps dépl.</th>
+        <th>#</th><th>Type</th><th>Durée</th><th style="color:var(--text-3)">Cumulé</th><th>Distance</th><th>Allure</th><th style="color:var(--teal)">V. ascens.</th><th style="color:var(--green)">Vit. GAP</th><th style="color:var(--blue)">FC moy.</th><th style="color:var(--blue)">FC max</th><th style="color:var(--green)">D+</th><th style="color:var(--text-2)">D−</th>${powerHeaders}${wkgHeader}<th style="color:var(--text-3)">Tps dépl.</th>
       </tr></thead><tbody>${rows}</tbody>
     </table></div>`;
   } else {
