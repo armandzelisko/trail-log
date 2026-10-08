@@ -1975,6 +1975,7 @@ function renderDetail() {
     { lbl:'FC max',      val: a.maxHR || '—', unit: a.maxHR ? 'bpm' : '', col:'var(--blue)' },
     { lbl:'Calories',    val: a.calories ? numFmt(a.calories) : '—', unit: a.calories ? 'kcal' : '', col:'var(--purple)' },
     { lbl:'D− / D+',    val: a.dPlus ? Math.round(a.dMinus/a.dPlus*100)+'%' : '—', unit:'ratio', col:'var(--text-3)' },
+    { lbl:'V. ascens.',  val: (a.dPlus && a.duration) ? numFmt(Math.round(a.dPlus * 3600 / a.duration)) : '—', unit: (a.dPlus && a.duration) ? 'm/h' : '', col:'var(--teal)' },
   ];
   document.getElementById('detail-kpi').innerHTML = kpis.map(k =>
     `<div class="det-kpi">
