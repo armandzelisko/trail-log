@@ -593,6 +593,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
           <button id="det-rename-btn" onclick="startRename()" title="Renommer la séance" style="background:none;border:none;cursor:pointer;padding:4px;color:var(--text-3);opacity:.6;transition:opacity .15s;display:flex;align-items:center" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.6">
             <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M10.5 2L13 4.5 5.5 12H3V9.5L10.5 2Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
           </button>
+          <button id="det-race-btn" onclick="toggleRace(currentActId)" style="background:none;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;padding:4px 10px;font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--text-3);display:flex;align-items:center;gap:4px;transition:all .15s">🏁 <span id="det-race-lbl">Course</span></button>
         </div>
         <div id="det-rename-form" style="display:none;margin-top:8px">
           <input id="det-rename-input" type="text" placeholder="Nom de la séance…"
@@ -628,8 +629,14 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
       </div>
     </div>
 
-    <!-- Découplement cardiaque — séances longues running uniquement -->
+    <!-- Zones puissance + Profil terrain -->
+    <div id="det-effort-extra" style="display:none;margin-bottom:13px"></div>
+
+    <!-- Découplement cardiaque -->
     <div id="det-decoupling" style="display:none;margin-bottom:13px"></div>
+
+    <!-- Prédiction Riegel -->
+    <div id="det-riegel" style="display:none;margin-bottom:13px"></div>
 
     <!-- Intervalles — pleine largeur -->
     <div class="card" id="det-laps-card" style="display:none;margin-bottom:0">
@@ -1831,7 +1838,7 @@ function renderRecentTable() {
     html+=`<tr class="tr-clickable" onclick="openActivity('${a.id}','dashboard')" title="Voir le détail">
       <td class="td-dt">${dateFmt(a.date)}</td>
       <td><span class="sport-badge" style="background:${si.css}">${si.abbr}</span></td>
-      <td class="td-name">${a.name||'—'}</td>
+      <td class="td-name">${a.isRace?'🏁 ':''}${a.name||'—'}</td>
       <td class="td-m">${kmFmt(a.distance)}<span class="td-d"> km</span></td>
       <td class="td-m">${durFmt(a.duration)}</td>
       <td class="td-m" style="color:var(--green)">${a.dPlus>0?'+'+numFmt(a.dPlus)+' m':'—'}</td>
@@ -1879,7 +1886,7 @@ function renderActivities() {
     html+=`<tr class="tr-clickable" onclick="openActivity('${a.id}','activities')" title="Voir le détail">
       <td class="td-dt">${dateFmt(a.date)}</td>
       <td><span class="sport-badge" style="background:${si.css}">${si.abbr}</span></td>
-      <td class="td-name">${a.name||'—'}</td>
+      <td class="td-name">${a.isRace?'🏁 ':''}${a.name||'—'}</td>
       <td class="td-m">${kmFmt(a.distance)}<span class="td-d"> km</span></td>
       <td class="td-m">${durFmt(a.duration)}</td>
       <td class="td-m" style="color:var(--green)">${a.dPlus>0?'+'+numFmt(a.dPlus)+'<span class="td-d"> m</span>':'—'}</td>
@@ -1904,6 +1911,32 @@ function delAct(id) {
   if(!confirm('Supprimer cette activité ?')) return;
   activities=activities.filter(a=>a.id!==id); saveDB();
   renderActivities(); updateNavMeta();
+}
+function toggleRace(id) {
+  const a = activities.find(x => x.id === id);
+  if (!a) return;
+  a.isRace = !a.isRace;
+  saveDB();
+  // Update button without full re-render
+  const btn = document.getElementById('det-race-btn');
+  const lbl = document.getElementById('det-race-lbl');
+  if (a.isRace) {
+    btn.style.color = 'var(--accent)'; btn.style.borderColor = 'var(--accent)';
+    btn.style.background = 'rgba(220,80,50,.08)';
+    lbl.textContent = 'Course ✓';
+  } else {
+    btn.style.color = 'var(--text-3)'; btn.style.borderColor = 'var(--border)';
+    btn.style.background = 'none';
+    lbl.textContent = 'Course';
+  }
+  // Update eyebrow badge
+  const eyebrow = document.getElementById('detail-eyebrow');
+  const existing = eyebrow ? eyebrow.querySelector('.race-badge') : null;
+  if (a.isRace && eyebrow && !existing) {
+    eyebrow.insertAdjacentHTML('beforeend', '<span class="race-badge" style="background:rgba(220,80,50,.12);color:var(--accent);font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;letter-spacing:.05em">🏁 COURSE</span>');
+  } else if (!a.isRace && existing) {
+    existing.remove();
+  }
 }
 
 
@@ -1950,8 +1983,23 @@ function renderDetail() {
   document.getElementById('detail-eyebrow').innerHTML =
     `<span class="sport-badge" style="background:${si.css}">${si.abbr}</span>
      <span>${dateFmt(a.date)}</span>
-     <span style="color:var(--text-3)">${durFmt(a.duration)}</span>`;
+     <span style="color:var(--text-3)">${durFmt(a.duration)}</span>
+     ${a.isRace ? '<span class="race-badge" style="background:rgba(220,80,50,.12);color:var(--accent);font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;letter-spacing:.05em">🏁 COURSE</span>' : ''}`;
   document.getElementById('detail-title').textContent = a.name || dateFmt(a.date);
+  // Race button state
+  const raceBtn = document.getElementById('det-race-btn');
+  const raceLbl = document.getElementById('det-race-lbl');
+  if (raceBtn) {
+    if (a.isRace) {
+      raceBtn.style.color = 'var(--accent)'; raceBtn.style.borderColor = 'var(--accent)';
+      raceBtn.style.background = 'rgba(220,80,50,.08)';
+      if (raceLbl) raceLbl.textContent = 'Course ✓';
+    } else {
+      raceBtn.style.color = 'var(--text-3)'; raceBtn.style.borderColor = 'var(--border)';
+      raceBtn.style.background = 'none';
+      if (raceLbl) raceLbl.textContent = 'Course';
+    }
+  }
 
   let gapSpeed = null; // calculé après prof, mis à jour via DOM patch
 
@@ -2087,11 +2135,8 @@ function renderDetail() {
     if(validH) avgEffortHR=Math.round(avgEffortHR/validH);
     if(validW) avgEffortW=Math.round(avgEffortW/validW);
     const summaryHtml = effortLaps.length > 1 ? `
-      <div style="display:flex;gap:24px;flex-wrap:wrap;padding:10px 0 14px;border-bottom:1px solid var(--border);margin-bottom:4px;font-size:12px;color:var(--text-3)">
+      <div style="padding:10px 0 14px;border-bottom:1px solid var(--border);margin-bottom:4px;font-size:12px;color:var(--text-3)">
         <span><strong style="color:var(--accent);font-size:15px;font-family:var(--f-d)">${effortLaps.length}</strong> intervalles effort</span>
-        ${avgEffortPace?`<span>Allure moy. <strong style="color:var(--text-1)">${paceFmt(avgEffortPace)}/km</strong></span>`:''}
-        ${avgEffortHR?`<span>FC moy. <strong style="color:var(--blue)">${avgEffortHR} bpm</strong></span>`:''}
-        ${avgEffortW?`<span>Puissance moy. <strong style="color:var(--purple)">${avgEffortW} W</strong></span>`:''}
       </div>` : '';
     let rows = '';
     let renderCum = 0;
@@ -2202,11 +2247,11 @@ function renderDetail() {
       <span style="font-family:var(--f-m);color:var(--text-1)">${si.label}</span></div>
   `;
 
-  // ── Découplement cardiaque (course longue uniquement) ────────────
+  // ── Découplement cardiaque ────────────────────────────────────────
   const dcEl = document.getElementById('det-decoupling');
-  const isLongRun = a.sport === 'Running' && (a.duration/60 > 90 || a.distance/1000 > 15);
+  const isRunning = a.sport === 'Running';
   if (dcEl) {
-    if (isLongRun && prof.length >= 12 && validHR.length >= 12) {
+    if (isRunning && prof.length >= 12 && validHR.length >= 12) {
       const mid   = Math.floor(prof.length / 2);
       const h1    = prof.slice(0, mid).map(p=>p.hr).filter(h=>h>30&&h<250);
       const h2    = prof.slice(mid).map(p=>p.hr).filter(h=>h>30&&h<250);
@@ -2247,6 +2292,148 @@ function renderDetail() {
         dcEl.style.display = '';
       } else { dcEl.style.display = 'none'; }
     } else { dcEl.style.display = 'none'; }
+  }
+
+  // ── Zones puissance + Profil terrain ─────────────────────────────
+  const eeEl = document.getElementById('det-effort-extra');
+  if (eeEl) {
+    let eeHtml = '';
+
+    // Power zones (distribution par laps pondérée par durée)
+    const powerLaps = (a.laps || []).filter(l => l.avgWatts > 0 && l.duration > 0);
+    if (powerLaps.length > 0 && displayAvgWatts > 0) {
+      const pzones = [
+        { lbl:'Z1', name:'Récup.',   lo:0,    hi:0.80, color:'#5090D8' },
+        { lbl:'Z2', name:'Endur.',   lo:0.80, hi:0.95, color:'#36A868' },
+        { lbl:'Z3', name:'Tempo',    lo:0.95, hi:1.05, color:'#D4A010' },
+        { lbl:'Z4', name:'Seuil',    lo:1.05, hi:1.20, color:'#E05030' },
+        { lbl:'Z5', name:'Intensif', lo:1.20, hi:999,  color:'#9060D8' },
+      ];
+      const totalWDur = powerLaps.reduce((s, l) => s + l.duration, 0) || 1;
+      const pzRows = pzones.map(z => {
+        const dur = powerLaps.filter(l => l.avgWatts >= z.lo*displayAvgWatts && l.avgWatts < z.hi*displayAvgWatts)
+          .reduce((s, l) => s + l.duration, 0);
+        const pct = Math.round(dur / totalWDur * 100);
+        const loW = z.lo > 0 ? Math.round(z.lo*displayAvgWatts) : 0;
+        const hiW = z.hi < 900 ? Math.round(z.hi*displayAvgWatts) : null;
+        const rangeStr = z.lo === 0 ? `< ${hiW} W` : hiW ? `${loW}–${hiW} W` : `> ${loW} W`;
+        return `<div class="zone-row">
+          <div class="zone-lbl" style="color:${z.color}">${z.lbl}</div>
+          <div class="zone-name">${z.name}</div>
+          <div class="zone-track"><div class="zone-fill" style="width:${pct}%;background:${z.color}"></div></div>
+          <div class="zone-pct">${pct}%</div>
+          <div style="font-size:10px;color:var(--text-3);min-width:70px;text-align:right">${rangeStr}</div>
+        </div>`;
+      }).join('');
+      eeHtml += `<div class="card" style="height:100%">
+        <div class="card-header"><div class="card-title">Zones de puissance</div></div>
+        <div style="font-size:11px;color:var(--text-3);margin-bottom:8px">Référence : moy. séance <strong style="color:var(--purple)">${displayAvgWatts} W</strong></div>
+        <div class="zone-bar-wrap">${pzRows}</div>
+      </div>`;
+    }
+
+    // Profil terrain (montée / plat / descente) depuis laps
+    const terrainLaps = (a.laps || []).filter(l => l.distance > 100 && l.duration > 10);
+    if (terrainLaps.length > 1) {
+      let mDist=0,mTime=0, dDist=0,dTime=0, pDist=0,pTime=0;
+      terrainLaps.forEach(l => {
+        const net = (l.dPlus||0) - (l.dMinus||0);
+        const grade = (net / l.distance) * 100;
+        if (grade > 3)      { mDist+=l.distance; mTime+=l.duration; }
+        else if (grade < -3){ dDist+=l.distance; dTime+=l.duration; }
+        else                 { pDist+=l.distance; pTime+=l.duration; }
+      });
+      const totalDist = mDist+dDist+pDist || 1;
+      const paceStr = (t, d) => d > 100 && t > 0 ? paceFmt(Math.round(t/(d/1000))) : '—';
+      const pctD = d => Math.round(d/totalDist*100);
+      const bar3 = (pm, pp, pd) => {
+        const wm=Math.round(pm), wf=Math.round(pp), wd=Math.round(pd);
+        return `<div style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin:8px 0 12px">
+          <div style="width:${wm}%;background:#36A868" title="Montée ${wm}%"></div>
+          <div style="width:${wf}%;background:var(--text-3);opacity:.4" title="Plat ${wf}%"></div>
+          <div style="width:${wd}%;background:#5090D8" title="Descente ${wd}%"></div>
+        </div>`;
+      };
+      const terrainHtml = `
+        ${bar3(pctD(mDist), pctD(pDist), pctD(dDist))}
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center">
+          <div>
+            <div style="font-size:10px;color:#36A868;font-weight:700;letter-spacing:.05em">MONTÉE</div>
+            <div style="font-family:var(--f-d);font-size:22px;font-weight:700;color:#36A868">${pctD(mDist)}%</div>
+            <div style="font-size:11px;color:var(--text-3)">${(mDist/1000).toFixed(1)} km</div>
+            <div style="font-size:12px;color:var(--text-2);margin-top:2px">${paceStr(mTime,mDist)}<span style="font-size:10px;color:var(--text-3)">/km</span></div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text-3);font-weight:700;letter-spacing:.05em">PLAT</div>
+            <div style="font-family:var(--f-d);font-size:22px;font-weight:700;color:var(--text-2)">${pctD(pDist)}%</div>
+            <div style="font-size:11px;color:var(--text-3)">${(pDist/1000).toFixed(1)} km</div>
+            <div style="font-size:12px;color:var(--text-2);margin-top:2px">${paceStr(pTime,pDist)}<span style="font-size:10px;color:var(--text-3)">/km</span></div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:#5090D8;font-weight:700;letter-spacing:.05em">DESCENTE</div>
+            <div style="font-family:var(--f-d);font-size:22px;font-weight:700;color:#5090D8">${pctD(dDist)}%</div>
+            <div style="font-size:11px;color:var(--text-3)">${(dDist/1000).toFixed(1)} km</div>
+            <div style="font-size:12px;color:var(--text-2);margin-top:2px">${paceStr(dTime,dDist)}<span style="font-size:10px;color:var(--text-3)">/km</span></div>
+          </div>
+        </div>
+        <div style="font-size:10px;color:var(--text-3);margin-top:8px">Montée > 3% · Descente < −3% · Allure moy. par type de terrain</div>`;
+      eeHtml += `<div class="card" style="height:100%">
+        <div class="card-header"><div class="card-title">Profil terrain</div></div>
+        ${terrainHtml}
+      </div>`;
+    }
+
+    if (eeHtml) {
+      eeEl.innerHTML = `<div class="detail-grid-2">${eeHtml}</div>`;
+      eeEl.style.display = '';
+    } else {
+      eeEl.style.display = 'none';
+    }
+  }
+
+  // ── Prédiction Riegel (ajustée au dénivelé via GAP) ──────────────
+  const riegelEl = document.getElementById('det-riegel');
+  if (riegelEl && isRunning && a.distance > 500 && a.duration > 0) {
+    const gapSpeedNum = gapSpeed ? parseFloat(gapSpeed) : null;
+    // Flat-equivalent time for D1 (using GAP speed if available)
+    const D1 = a.distance;
+    const T1_base = gapSpeedNum
+      ? (D1 / 1000) / gapSpeedNum * 3600
+      : a.duration;
+    const isAdjusted = !!gapSpeedNum;
+    const targets = [
+      { name:'5 km',      dist:5000 },
+      { name:'10 km',     dist:10000 },
+      { name:'Semi',      dist:21097 },
+      { name:'Marathon',  dist:42195 },
+    ];
+    const rCards = targets.map(t => {
+      const T2 = T1_base * Math.pow(t.dist / D1, 1.06);
+      const pace2 = Math.round(T2 / (t.dist / 1000));
+      const isRef = Math.abs(t.dist - D1) < D1 * 0.05; // within 5% of current distance
+      return `<div style="text-align:center;padding:10px 6px;border-radius:8px;background:${isRef?'rgba(220,80,50,.07)':'var(--bg)'};border:1px solid ${isRef?'var(--accent)':'var(--border)'}">
+        <div style="font-size:10px;color:var(--text-3);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">${t.name}</div>
+        <div style="font-family:var(--f-d);font-size:20px;font-weight:700;color:var(--text-1);line-height:1">${durFmt(Math.round(T2))}</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:3px">${paceFmt(pace2)}/km</div>
+      </div>`;
+    }).join('');
+    const refNote = a.isRace
+      ? `Basé sur ta course du ${dateFmt(a.date)}`
+      : `Basé sur la séance du ${dateFmt(a.date)}`;
+    const gapNote = isAdjusted
+      ? ` · Dénivelé pris en compte via GAP (${gapSpeed} km/h → plat)`
+      : ' · Sans ajustement dénivelé (GAP non calculé)';
+    riegelEl.innerHTML = `<div class="card">
+      <div class="card-header">
+        <div class="card-title">Prédiction Riegel${a.isRace?' 🏁':''}</div>
+        <div style="font-size:11px;color:var(--text-3)">T₂ = T₁ × (D₂/D₁)^1.06</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px">${rCards}</div>
+      <div style="font-size:10px;color:var(--text-3);line-height:1.5">${refNote}${gapNote}</div>
+    </div>`;
+    riegelEl.style.display = '';
+  } else if (riegelEl) {
+    riegelEl.style.display = 'none';
   }
 }
 
