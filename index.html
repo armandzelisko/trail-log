@@ -1997,7 +1997,6 @@ function renderDetail() {
     const g = Math.max(-40, Math.min(40, gradePct));
     return 1 + 0.033 * g + 0.000455 * g * g;
   }
-  let gapSpeed = null;
   if (prof.length >= 4 && a.distance > 0 && a.duration > 0) {
     let totalAdjDist = 0, totalDist = 0;
     for (let i = 1; i < prof.length; i++) {
