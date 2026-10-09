@@ -392,8 +392,63 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
+<!-- ═══════════════════════ LOGIN ═══════════════════════ -->
+<div id="login-screen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column">
+  <div style="width:100%;max-width:360px;padding:0 24px">
+    <!-- Logo -->
+    <div style="text-align:center;margin-bottom:36px">
+      <svg width="40" height="34" viewBox="0 0 26 22" fill="none" style="display:block;margin:0 auto 10px">
+        <path d="M1 20 L7 9 L11.5 14 L16 4 L25 20" stroke="#C53E10" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M1 20 H25" stroke="var(--text-3)" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <div style="font-family:var(--f-d);font-size:22px;font-weight:700;letter-spacing:.08em;color:var(--text-1)">TRAIL AZ</div>
+    </div>
+    <!-- Card -->
+    <div style="background:var(--surface-raised);border:1px solid var(--border);border-radius:14px;padding:28px 24px">
+      <div style="font-size:13px;font-weight:600;color:var(--text-2);margin-bottom:20px;letter-spacing:.03em">Connexion</div>
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:11px;font-weight:600;color:var(--text-3);letter-spacing:.05em;margin-bottom:6px">IDENTIFIANT</label>
+        <input id="login-user" type="text" autocomplete="username" autocapitalize="none"
+          placeholder="a.zelisko"
+          style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text-1);font-size:14px;font-family:var(--f-u);outline:none;transition:border-color .15s"
+          onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"
+          onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()">
+      </div>
+      <div style="margin-bottom:20px">
+        <label style="display:block;font-size:11px;font-weight:600;color:var(--text-3);letter-spacing:.05em;margin-bottom:6px">MOT DE PASSE</label>
+        <input id="login-pass" type="password" autocomplete="current-password"
+          placeholder="••••••••"
+          style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text-1);font-size:14px;font-family:var(--f-u);outline:none;transition:border-color .15s"
+          onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"
+          onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div id="login-err" style="display:none;font-size:12px;color:var(--accent);margin-bottom:14px;padding:8px 12px;background:var(--accent-sub);border-radius:6px">Identifiant ou mot de passe incorrect.</div>
+      <button onclick="doLogin()"
+        style="width:100%;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;font-family:var(--f-u);cursor:pointer;letter-spacing:.03em;transition:background .15s"
+        onmouseover="this.style.background='var(--accent-hov)'" onmouseout="this.style.background='var(--accent)'">
+        Se connecter
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ PROFILE PICKER ══════════════════ -->
+<div id="profile-picker" style="display:none;position:fixed;inset:0;z-index:9998;background:var(--bg);align-items:center;justify-content:center;flex-direction:column">
+  <div style="width:100%;max-width:480px;padding:0 24px">
+    <div style="text-align:center;margin-bottom:32px">
+      <svg width="36" height="30" viewBox="0 0 26 22" fill="none" style="display:block;margin:0 auto 10px">
+        <path d="M1 20 L7 9 L11.5 14 L16 4 L25 20" stroke="#C53E10" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M1 20 H25" stroke="var(--text-3)" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <div style="font-family:var(--f-d);font-size:20px;font-weight:700;letter-spacing:.08em;color:var(--text-1)">TRAIL AZ</div>
+      <div style="font-size:12px;color:var(--text-3);margin-top:4px">Quel sportif veux-tu consulter ?</div>
+    </div>
+    <div id="picker-cards" style="display:flex;flex-direction:column;gap:12px"></div>
+  </div>
+</div>
+
 <!-- ═══════════════════════ APP ═════════════════════════ -->
-<div id="app">
+<div id="app" style="display:none">
 
 <nav class="topnav">
   <div class="nav-logo" onclick="go('dashboard')" role="button" tabindex="0">
@@ -413,6 +468,17 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     <button class="nav-btn" data-view="profile" onclick="go('profile')">Profil</button>
   </div>
   <div class="nav-meta" id="nav-meta"></div>
+  <!-- Profile switcher — admin only -->
+  <div id="nav-profile-switcher" style="display:none;position:relative;margin-left:10px">
+    <button id="nav-profile-btn" onclick="toggleProfileDropdown()"
+      style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:5px 12px 5px 6px;cursor:pointer;color:var(--nav-txt);font-size:12px;font-weight:600;font-family:var(--f-u);transition:all .15s"
+      onmouseover="this.style.background='rgba(255,255,255,.12)'" onmouseout="this.style.background='rgba(255,255,255,.07)'">
+      <span id="nav-profile-avatar" style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0"></span>
+      <span id="nav-profile-name" style="color:#e8e2d8"></span>
+      <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style="margin-left:2px"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </button>
+    <div id="nav-profile-dropdown" style="display:none;position:absolute;right:0;top:calc(100% + 8px);background:var(--surface-raised);border:1px solid var(--border);border-radius:10px;min-width:180px;box-shadow:0 4px 20px rgba(0,0,0,.25);overflow:hidden;z-index:200"></div>
+  </div>
 </nav>
 
 <main class="main-content">
@@ -664,9 +730,20 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 ════════════════════════════════════════════════════════════════ */
 const TCX_NS = 'http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2';
 const ACT_NS = 'http://www.garmin.com/xmlschemas/ActivityExtension/v2';
-const STORE         = 'traillog_v2';
-const PROFILE_STORE = 'traillog_profile';
-const GDRIVE_STORE  = 'traillog_gdrive';
+/* ── Multi-user config ─────────────────────────────────────────────── */
+const USERS = [
+  { id: 'az',    name: 'Armand',  login: 'a.zelisko',  pass: '@a.zelisko',  role: 'admin',   color: '#C53E10', initials: 'AZ' },
+  { id: 'anais', name: 'Anaïs',   login: 'a.latombe',  pass: '@a.latombe',  role: 'athlete', color: '#7040B8', initials: 'AL' },
+];
+
+const STORE_PREFIX   = 'traillog_v2';
+const PROFILE_PREFIX = 'traillog_profile';
+const GDRIVE_PREFIX  = 'traillog_gdrive';
+
+// Resolved at login time, based on currentProfile
+let STORE         = STORE_PREFIX;
+let PROFILE_STORE = PROFILE_PREFIX;
+let GDRIVE_STORE  = GDRIVE_PREFIX;
 
 const SPORT = {
   Running: { label: 'Course / Trail', abbr: 'RUN', css: 'var(--s-run)',  pill: '#C53E10' },
@@ -683,6 +760,8 @@ const PROFILE_COLORS = ['var(--accent)','var(--blue)','var(--green)','var(--purp
    STATE
 ════════════════════════════════════════════════════════════════ */
 let activities    = [];
+let currentUser   = null;   // USERS entry of logged-in user
+let currentProfile = null;  // USERS entry of profile being viewed (admin can switch)
 let currentView   = 'dashboard';
 let currentMetric = 'distance';
 let currentSport  = 'all';
@@ -710,6 +789,7 @@ function loadGDrive() {
     const raw = localStorage.getItem(GDRIVE_STORE);
     if (raw) gdriveState = { ...gdriveState, ...JSON.parse(raw) };
   } catch(e) {}
+  return gdriveState;
 }
 function saveGDrive() {
   try { localStorage.setItem(GDRIVE_STORE, JSON.stringify(gdriveState)); }
@@ -932,6 +1012,7 @@ function loadProfile() {
     const raw = localStorage.getItem(PROFILE_STORE);
     if (raw) athleteProfile = { ...athleteProfile, ...JSON.parse(raw) };
   } catch(e) {}
+  return athleteProfile;
 }
 function saveProfile() {
   try { localStorage.setItem(PROFILE_STORE, JSON.stringify(athleteProfile)); }
@@ -2519,12 +2600,176 @@ function saveProfileForm() {
 }
 
 /* ════════════════════════════════════════════════════════════════
+   AUTH & MULTI-PROFILE
+════════════════════════════════════════════════════════════════ */
+const AUTH_KEY = 'trailaz_auth'; // sessionStorage: JSON {userId, profileId}
+
+function storeKeys(profileId) {
+  return {
+    store:   STORE_PREFIX   + '_' + profileId,
+    profile: PROFILE_PREFIX + '_' + profileId,
+    gdrive:  GDRIVE_PREFIX  + '_' + profileId,
+  };
+}
+
+function activateProfile(user, profile) {
+  currentUser    = user;
+  currentProfile = profile;
+  const keys = storeKeys(profile.id);
+  STORE         = keys.store;
+  PROFILE_STORE = keys.profile;
+  GDRIVE_STORE  = keys.gdrive;
+  // reset GDrive token (each profile may have a different Google account)
+  _gdriveToken    = null;
+  _gdriveTokenExp = 0;
+  // reset athlete profile defaults before loading
+  athleteProfile = { fcmax:0, fcrepos:0, poids:0, nom:'' };
+  gdriveState    = { clientId:'', folderId:'', folderName:'', importedIds:[] };
+  // reload data for this profile
+  loadProfile();
+  loadGDrive();
+  activities     = loadDB();
+  renderDashboard();
+  go('dashboard');
+  // show app
+  document.getElementById('login-screen').style.display    = 'none';
+  document.getElementById('profile-picker').style.display  = 'none';
+  document.getElementById('app').style.display             = '';
+  // update nav switcher
+  updateNavSwitcher();
+}
+
+function updateNavSwitcher() {
+  const sw = document.getElementById('nav-profile-switcher');
+  if (!sw) return;
+  if (currentUser && currentUser.role === 'admin') {
+    sw.style.display = 'block';
+    const av = document.getElementById('nav-profile-avatar');
+    const nm = document.getElementById('nav-profile-name');
+    if (av) { av.textContent = currentProfile.initials; av.style.background = currentProfile.color; }
+    if (nm) nm.textContent = currentProfile.name;
+  } else {
+    sw.style.display = 'none';
+  }
+}
+
+function toggleProfileDropdown() {
+  const dd = document.getElementById('nav-profile-dropdown');
+  if (!dd) return;
+  if (dd.style.display === 'none') {
+    // Build dropdown
+    dd.innerHTML = USERS.map(u => `
+      <div onclick="switchProfile('${u.id}')" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;transition:background .1s;${currentProfile && currentProfile.id === u.id ? 'background:var(--accent-sub)' : ''}"
+        onmouseover="this.style.background='var(--border-sub)'" onmouseout="this.style.background='${currentProfile && currentProfile.id === u.id ? 'var(--accent-sub)' : ''}'">
+        <span style="width:28px;height:28px;border-radius:50%;background:${u.color};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0">${u.initials}</span>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text-1)">${u.name}</div>
+          <div style="font-size:11px;color:var(--text-3)">${u.role === 'admin' ? 'Admin' : 'Athlète'}</div>
+        </div>
+        ${currentProfile && currentProfile.id === u.id ? '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="margin-left:auto"><path d="M2.5 7l3 3 6-6" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
+      </div>`).join('<div style="height:1px;background:var(--border-sub);margin:0 14px"></div>');
+    dd.style.display = 'block';
+    // close on outside click
+    setTimeout(() => document.addEventListener('click', closeDropdownOutside, {once:true}), 10);
+  } else {
+    dd.style.display = 'none';
+  }
+}
+
+function closeDropdownOutside(e) {
+  const dd = document.getElementById('nav-profile-dropdown');
+  const btn = document.getElementById('nav-profile-btn');
+  if (dd && !dd.contains(e.target) && btn && !btn.contains(e.target)) {
+    dd.style.display = 'none';
+  }
+}
+
+function switchProfile(profileId) {
+  const dd = document.getElementById('nav-profile-dropdown');
+  if (dd) dd.style.display = 'none';
+  if (currentProfile && currentProfile.id === profileId) return;
+  const profile = USERS.find(u => u.id === profileId);
+  if (!profile) return;
+  try {
+    const auth = JSON.parse(sessionStorage.getItem(AUTH_KEY) || '{}');
+    auth.profileId = profileId;
+    sessionStorage.setItem(AUTH_KEY, JSON.stringify(auth));
+  } catch(e) {}
+  activateProfile(currentUser, profile);
+}
+
+function doLogin() {
+  const u = (document.getElementById('login-user').value || '').trim();
+  const p = (document.getElementById('login-pass').value || '');
+  const err = document.getElementById('login-err');
+  const user = USERS.find(x => x.login === u && x.pass === p);
+  if (user) {
+    err.style.display = 'none';
+    try { sessionStorage.setItem(AUTH_KEY, JSON.stringify({ userId: user.id, profileId: user.id })); } catch(e) {}
+    if (user.role === 'admin') {
+      showProfilePicker(user);
+    } else {
+      activateProfile(user, user);
+    }
+  } else {
+    err.style.display = 'block';
+    document.getElementById('login-pass').value = '';
+    document.getElementById('login-pass').focus();
+  }
+}
+
+function showProfilePicker(user) {
+  document.getElementById('login-screen').style.display = 'none';
+  const picker = document.getElementById('profile-picker');
+  picker.style.display = 'flex';
+  const cards = document.getElementById('picker-cards');
+  cards.innerHTML = USERS.map(u => `
+    <div onclick="pickProfile('${u.id}')"
+      style="display:flex;align-items:center;gap:14px;background:var(--surface-raised);border:1.5px solid var(--border);border-radius:12px;padding:16px 18px;cursor:pointer;transition:all .15s"
+      onmouseover="this.style.borderColor='${u.color}';this.style.background='var(--surface)'"
+      onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface-raised)'">
+      <div style="width:44px;height:44px;border-radius:50%;background:${u.color};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0">${u.initials}</div>
+      <div>
+        <div style="font-size:15px;font-weight:600;color:var(--text-1)">${u.name}</div>
+        <div style="font-size:12px;color:var(--text-3);margin-top:2px">${u.role === 'admin' ? 'Admin · tous les profils accessibles' : 'Athlète'}</div>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-left:auto;color:var(--text-3)"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>`).join('');
+}
+
+function pickProfile(profileId) {
+  const user = USERS.find(u => u.id === (currentUser ? currentUser.id : profileId));
+  const profile = USERS.find(u => u.id === profileId);
+  if (!user || !profile) return;
+  try {
+    const auth = JSON.parse(sessionStorage.getItem(AUTH_KEY) || '{}');
+    auth.profileId = profileId;
+    sessionStorage.setItem(AUTH_KEY, JSON.stringify(auth));
+  } catch(e) {}
+  activateProfile(user, profile);
+}
+
+function checkAuth() {
+  let auth = null;
+  try { auth = JSON.parse(sessionStorage.getItem(AUTH_KEY) || 'null'); } catch(e) {}
+  if (auth && auth.userId) {
+    const user    = USERS.find(u => u.id === auth.userId);
+    const profile = USERS.find(u => u.id === (auth.profileId || auth.userId));
+    if (user && profile) {
+      activateProfile(user, profile);
+      return;
+    }
+  }
+  // Show login
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  setTimeout(() => { const el = document.getElementById('login-user'); if(el) el.focus(); }, 50);
+}
+
+/* ════════════════════════════════════════════════════════════════
    INIT
 ════════════════════════════════════════════════════════════════ */
-loadProfile();
-loadGDrive();
-activities = loadDB();
-renderDashboard();
+checkAuth();
 </script>
 
 </body></html>
