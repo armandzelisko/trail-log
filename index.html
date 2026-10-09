@@ -2612,6 +2612,23 @@ function storeKeys(profileId) {
   };
 }
 
+function migrateIfNeeded(keys) {
+  // If new profile key is empty but legacy key has data → migrate once
+  const legacyMap = {
+    [STORE_PREFIX + '_az']: STORE_PREFIX,
+    [PROFILE_PREFIX + '_az']: PROFILE_PREFIX,
+    [GDRIVE_PREFIX + '_az']: GDRIVE_PREFIX,
+  };
+  [keys.store, keys.profile, keys.gdrive].forEach(k => {
+    if (!localStorage.getItem(k) && legacyMap[k]) {
+      const legacy = localStorage.getItem(legacyMap[k]);
+      if (legacy) {
+        try { localStorage.setItem(k, legacy); } catch(e) {}
+      }
+    }
+  });
+}
+
 function activateProfile(user, profile) {
   currentUser    = user;
   currentProfile = profile;
@@ -2619,6 +2636,8 @@ function activateProfile(user, profile) {
   STORE         = keys.store;
   PROFILE_STORE = keys.profile;
   GDRIVE_STORE  = keys.gdrive;
+  // migrate legacy data (traillog_v2 → traillog_v2_az) if needed
+  migrateIfNeeded(keys);
   // reset GDrive token (each profile may have a different Google account)
   _gdriveToken    = null;
   _gdriveTokenExp = 0;
