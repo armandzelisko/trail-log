@@ -2249,10 +2249,11 @@ function renderCalendar() {
   const daysInMo = new Date(year,month+1,0).getDate();
   const today = new Date(); today.setHours(0,0,0,0);
 
-  // Index activities and plans by date key
+  // Index activities and plans by date key (local time to avoid UTC shift)
+  const localKey = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   const actByDay = {}, planByDay = {};
   activities.forEach(a=>{
-    const k=a.date.toISOString().slice(0,10);
+    const k=localKey(a.date);
     (actByDay[k]||(actByDay[k]=[])).push(a);
   });
   plans.forEach(p=>{
@@ -2283,7 +2284,7 @@ function renderCalendar() {
 
   for (let d=1;d<=daysInMo;d++) {
     const date = new Date(year,month,d);
-    const key  = date.toISOString().slice(0,10);
+    const key  = localKey(date);
     const isToday = date.getTime()===today.getTime();
     const dayActs  = actByDay[key]  || [];
     const dayPlans = planByDay[key] || [];
